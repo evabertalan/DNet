@@ -16,13 +16,15 @@ def calculate_PMF(dist, ax):
     bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
 
     # Step 3: Calculate the probability distribution (P(x))
-    # Since hist is already normalized by the 'density=True' argument, hist can be treated as P(x)
+    # Since hist is already normalized by the 'density=True' argument,
+    # hist can be treated as P(x)
     threshold = min_th * np.sum(hist)
     P_x = hist[np.where(hist > threshold)[0]]
     bin_centers = bin_centers[np.where(hist > threshold)[0]]
 
     # Step 4: Calculate the PMF using W(x) = -kT ln P(x)
-    # Avoid log of zero by replacing zeros with a small number (or ignoring bins with zero probability)
+    # Avoid log of zero by replacing zeros with a small number
+    # (or ignoring bins with zero probability)
     P_x[P_x == 0] = 1e-10  # Handling log(0) by a very small number
 
     # Compute the PMF (in units of kcal/mol)
