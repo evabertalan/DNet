@@ -344,7 +344,6 @@ class MDProfilePlotter:
                     fontsize=text_fs,
                 )
 
-                # save the pmf as welll as the data files
                 bin_centers, PMF = self.calculate_PMF(last_x_dist[dist_col])
 
                 pmfs = pd.DataFrame(cols=bin_centers, data=PMF)
