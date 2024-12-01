@@ -2,8 +2,10 @@ import ast
 from pathlib import Path
 import pandas as pd
 import numpy as np
+from scipy.signal import find_peaks
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
+from scipy.ndimage import gaussian_filter1d
 
 
 class MDProfilePlotter:
@@ -79,9 +81,9 @@ class MDProfilePlotter:
     def calculate_PMF(self, distances, T=300, num_bins=100, min_th=0.001):
         # Boltzmann constant in kcal/(mol⋅K) (kB = 1.380649e-23 J/K)
         # https://en.wikipedia.org/wiki/Boltzmann_constant
-        k_B_kcalmol = 1.987204259e-3
+        kB_kcalmol = 1.987204259e-3
         self.T = T  # Temperature in Kelvin
-        kT_kcalmol = k_B_kcalmol * self.T
+        kT_kcalmol = kB_kcalmol * self.T
 
         # Create histogram (frequency counts) density=True, means it is normalized
         hist, bin_edges = np.histogram(distances, bins=num_bins, density=True)
@@ -93,6 +95,7 @@ class MDProfilePlotter:
         threshold = min_th * np.sum(
             hist
         )  # TODO: maybe define it in a more intuitive way
+        # maybe use
         # Calculate the probability distribution (P(x))
         # Hist is already normalized by the 'density=True' --> hist = P(x)
         P_x = hist[np.where(hist > threshold)[0]]
@@ -110,6 +113,32 @@ class MDProfilePlotter:
 
         return bin_centers, PMF
 
+    def count_substates(self, distances, num_bins=100):
+        hist, bin_edges = np.histogram(distances, bins=100, density=True)
+        if hist[0] > 0.1:
+            # this is to pad values, if the histogram starts with a sharp high peak
+            # the smoothing algorithm takes in consideration the neighboring bins
+            # if the first bin has a high peak, will be missed
+            hist = np.append(np.linspace(0, 0.01, 6), hist)
+            bin_edges = np.append(np.zeros(6), bin_edges)
+        # Simple moving average
+        smoothed_hist = np.convolve(hist, np.ones(9) / 9, mode="same")
+
+        peaks, properties = find_peaks(smoothed_hist, prominence=0.03)
+        bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+
+        fig2, ax2 = plt.subplots()
+        ax2.plot(bin_centers, hist, label="Histogram")
+        ax2.plot(bin_centers, smoothed_hist, label="Smoothed Histogram")
+        ax2.plot(bin_centers[peaks], hist[peaks], "x", label="Peaks")
+        ax2.legend()
+        fig2.show()
+        fig2.savefig(Path(self.path_to_save_output, f"{self.sim_name}_peaks.png"))
+
+        # Print the number of peaks
+        print(f"Number of peaks: {len(peaks)}")
+        return len(peaks)
+
     def create_combined_plots(self):
 
         pKa_color = "#227351"
@@ -123,7 +152,8 @@ class MDProfilePlotter:
         shift = 19
         num_bins = 100
 
-        for i, pKa_column in enumerate(self.pKas.columns):
+        for i, pKa_column in enumerate(self.pKas.columns[1:5]):
+            total_number_of_states = 0
             distcance_columns = [
                 col
                 for col in self.distances.columns
@@ -325,7 +355,11 @@ class MDProfilePlotter:
                 last_x_dist = self.distances[
                     self.distances.index > max(self.distances.index) - end_frame_pmf
                 ]
-                total_number_of_states = 0
+
+                num_substates = self.count_substates(
+                    last_x_dist[dist_col], num_bins=num_bins
+                )
+                total_number_of_states += num_substates
 
                 ax[x, 2].hist(
                     last_x_dist[dist_col],
@@ -341,7 +375,7 @@ class MDProfilePlotter:
                 ax[x, 2].text(
                     0.95,
                     0.95,
-                    f"last {end_frame_pmf/frame_to_time:.0f} ns",
+                    f"last {end_frame_pmf/frame_to_time:.0f} ns\n{num_substates} substates",
                     horizontalalignment="right",
                     verticalalignment="top",
                     transform=ax[x, 2].transAxes,
@@ -365,6 +399,7 @@ class MDProfilePlotter:
                     ax[x, 3], xlabel="PMF (kcal/mol)", ylabel="Distance (Å)"
                 )
 
+            print("total_number_of_states", total_number_of_states)
             fig.tight_layout(h_pad=4.0)
             fig.savefig(
                 Path(
