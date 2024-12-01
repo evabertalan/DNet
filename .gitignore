@@ -3,3 +3,4 @@
 example_files/
 if_not_opened_delete/
 write-avg around_water_res_for_coloring.ipynb
+__pycache__/
