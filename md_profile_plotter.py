@@ -23,7 +23,7 @@ class MDProfilePlotter:
         pKa_nodes = [("-").join(node.split("-")[0:3]) for node in graph_nodes]
 
         pKas = pd.read_csv(pKa_info_file, index_col="frame")
-        self.pKas = pKas.loc[:, self.pKas.columns.isin(pKa_nodes)]
+        self.pKas = pKas.loc[:, pKas.columns.isin(pKa_nodes)]
         self.pKas.to_csv(
             Path(self.path_to_save_output, f"pKa_nodes_per_freame_{sim_name}.csv")
         )
@@ -51,7 +51,7 @@ class MDProfilePlotter:
             print(f"Error processing file {file}: {e}")
         return nodes
 
-    def _ax_util(ax, title=None, xlabel=None, ylabel=None, only_integers=False):
+    def _ax_util(self, ax, title=None, xlabel=None, ylabel=None, only_integers=False):
         title_fs = 36
         label_fs = 34
         tick_fs = 32
@@ -66,7 +66,7 @@ class MDProfilePlotter:
             ax.yaxis.set_major_locator(MaxNLocator(integer=True))
         return ax
 
-    def _shift_resid_index(node_names, shift=0):
+    def _shift_resid_index(self, node_names, shift=0):
         node_names = node_names.split(" - ")
         updated_node_names = []
         for n in node_names:
@@ -346,10 +346,11 @@ class MDProfilePlotter:
 
                 bin_centers, PMF = self.calculate_PMF(last_x_dist[dist_col])
 
-                pmfs = pd.DataFrame(cols=bin_centers, data=PMF)
+                pmfs = pd.DataFrame(data={"distance": bin_centers, "PMF": PMF})
                 pmfs.to_csv(
                     Path(
-                        self.path_to_save_output, f"PMF_{self.sim_name,}_{dist_col}.csv"
+                        self.path_to_save_output,
+                        f"PMF_{self.sim_name}_{dist_col.replace(' - ', '__')}.csv",
                     )
                 )
 
