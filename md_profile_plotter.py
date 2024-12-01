@@ -125,18 +125,6 @@ class MDProfilePlotter:
         smoothed_hist = np.convolve(hist, np.ones(9) / 9, mode="same")
 
         peaks, properties = find_peaks(smoothed_hist, prominence=0.03)
-        bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
-
-        fig2, ax2 = plt.subplots()
-        ax2.plot(bin_centers, hist, label="Histogram")
-        ax2.plot(bin_centers, smoothed_hist, label="Smoothed Histogram")
-        ax2.plot(bin_centers[peaks], hist[peaks], "x", label="Peaks")
-        ax2.legend()
-        fig2.show()
-        fig2.savefig(Path(self.path_to_save_output, f"{self.sim_name}_peaks.png"))
-
-        # Print the number of peaks
-        print(f"Number of peaks: {len(peaks)}")
         return len(peaks)
 
     def create_combined_plots(self):
@@ -152,7 +140,7 @@ class MDProfilePlotter:
         shift = 19
         num_bins = 100
 
-        for i, pKa_column in enumerate(self.pKas.columns[1:5]):
+        for i, pKa_column in enumerate(self.pKas.columns):
             total_number_of_states = 0
             distcance_columns = [
                 col
