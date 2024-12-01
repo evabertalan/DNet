@@ -1,10 +1,9 @@
-import os
-import pandas as pd
 import ast
+from pathlib import Path
+import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
-import numpy as np
-from pathlib import Path
 
 
 class MDProfilePlotter:
@@ -52,36 +51,35 @@ class MDProfilePlotter:
         return nodes
 
     def calculate_PMF(self, distances, T=300, num_bins=100, min_th=0.001):
-        #   Constants
-        k_B = 1.380649e-23  # Boltzmann constant in J/K
+        # Boltzmann constant in kcal/(mol⋅K) (kB = 1.380649e-23 J/K)
+        # https://en.wikipedia.org/wiki/Boltzmann_constant
+        k_B_kcalmol = 1.987204259e-3
         self.T = T  # Temperature in Kelvin
-        kT = k_B * T  # Thermal energy (Joules)
+        kT_kcalmol = k_B_kcalmol * self.T
 
-        # Convert kT to units of kcal/mol (1 kT in kcal/mol at 300K is approx. 0.596)
-        kT_kcalmol = 0.596
-
-        # Create the histogram (frequency counts) density=True, means it is normalized
+        # Create histogram (frequency counts) density=True, means it is normalized
         hist, bin_edges = np.histogram(distances, bins=num_bins, density=True)
 
         # The midpoints of the bins represent the reaction coordinate
         bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
 
-        # Step 3: Calculate the probability distribution (P(x))
-        # Since hist is already normalized by the 'density=True' argument,
-        # hist can be treated as P(x)
-        threshold = min_th * np.sum(hist)
+        # set minimum probability threshold to avoid rare states on the PMF
+        threshold = min_th * np.sum(
+            hist
+        )  # TODO: maybe define it in a more intuitive way
+        # Calculate the probability distribution (P(x))
+        # Hist is already normalized by the 'density=True' --> hist = P(x)
         P_x = hist[np.where(hist > threshold)[0]]
         bin_centers = bin_centers[np.where(hist > threshold)[0]]
 
-        # Step 4: Calculate the PMF using W(x) = -kT ln P(x)
-        # Avoid log of zero by replacing zeros with a small number
-        # (or ignoring bins with zero probability)
-        P_x[P_x == 0] = 1e-10  # Handling log(0) by a very small number
+        # Avoid log of zero (bins with zero probability)
+        # replacing zeros with a small number
+        P_x[P_x == 0] = 1e-10
 
-        # Compute the PMF (in units of kcal/mol)
+        # Compute the PMF W(x) = -kT ln P(x) (in units of kcal/mol)
         PMF = -kT_kcalmol * np.log(P_x)
 
-        # Step 5: Normalize the PMF to set the minimum to 0
+        # Normalize the PMF to set the minimum to 0
         PMF -= np.min(PMF)
 
         return bin_centers, PMF
