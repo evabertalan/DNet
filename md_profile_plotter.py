@@ -121,6 +121,7 @@ class MDProfilePlotter:
         frame_to_time = 100
         end_frame_pmf = 20000
         shift = 19
+        num_bins = 100
 
         for i, pKa_column in enumerate(self.pKas.columns):
             distcance_columns = [
@@ -158,7 +159,7 @@ class MDProfilePlotter:
 
             ax[0, 1].hist(
                 self.pKas[pKa_column],
-                bins=100,
+                bins=num_bins,
                 edgecolor=pKa_color,
                 color=pKa_color,
                 alpha=0.4,
@@ -171,7 +172,7 @@ class MDProfilePlotter:
             ]
             ax[0, 2].hist(
                 last_x_pKa[pKa_column],
-                bins=100,
+                bins=num_bins,
                 edgecolor=pKa_color,
                 color=pKa_color,
                 alpha=0.4,
@@ -204,7 +205,7 @@ class MDProfilePlotter:
 
             ax[1, 1].hist(
                 self.total_water_around_res[pKa_column],
-                bins=100,
+                bins=num_bins,
                 edgecolor=total_water_color,
                 color=total_water_color,
                 alpha=0.4,
@@ -220,7 +221,7 @@ class MDProfilePlotter:
             ]
             ax[1, 2].hist(
                 last_x_total_water[pKa_column],
-                bins=100,
+                bins=num_bins,
                 edgecolor=total_water_color,
                 color=total_water_color,
                 alpha=0.4,
@@ -258,7 +259,7 @@ class MDProfilePlotter:
 
                 ax[x, 1].hist(
                     self.water_numbers[wat_col],
-                    bins=100,
+                    bins=num_bins,
                     edgecolor=water_color,
                     color=water_color,
                     alpha=0.4,
@@ -274,7 +275,7 @@ class MDProfilePlotter:
                 ]
                 ax[x, 2].hist(
                     last_x_water[wat_col],
-                    bins=100,
+                    bins=num_bins,
                     edgecolor=water_color,
                     color=water_color,
                     alpha=0.4,
@@ -295,6 +296,7 @@ class MDProfilePlotter:
                 ax[x, 3].axis("off")
 
             for j, dist_col in enumerate(distcance_columns):
+
                 x = j + 2 + len(water_columns)
                 ax[x, 0].plot(
                     self.distances.index / frame_to_time,
@@ -310,7 +312,7 @@ class MDProfilePlotter:
 
                 ax[x, 1].hist(
                     self.distances[dist_col],
-                    bins=100,
+                    bins=num_bins,
                     edgecolor=dist_color,
                     color=dist_color,
                     alpha=0.4,
@@ -323,9 +325,11 @@ class MDProfilePlotter:
                 last_x_dist = self.distances[
                     self.distances.index > max(self.distances.index) - end_frame_pmf
                 ]
+                total_number_of_states = 0
+
                 ax[x, 2].hist(
                     last_x_dist[dist_col],
-                    bins=100,
+                    bins=num_bins,
                     edgecolor=dist_color,
                     color=dist_color,
                     alpha=0.4,
@@ -344,7 +348,9 @@ class MDProfilePlotter:
                     fontsize=text_fs,
                 )
 
-                bin_centers, PMF = self.calculate_PMF(last_x_dist[dist_col])
+                bin_centers, PMF = self.calculate_PMF(
+                    last_x_dist[dist_col], num_bins=num_bins
+                )
 
                 pmfs = pd.DataFrame(data={"distance": bin_centers, "PMF": PMF})
                 pmfs.to_csv(
