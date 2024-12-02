@@ -1,225 +1,47 @@
 from . import helperfunctions as _hf
 import copy
 import networkx as nx
-import pdb
 import numpy as np
 import MDAnalysis as _mda
 from MDAnalysis.analysis import distances
 from . import mdhbond as mdh
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-
-import pdb
+from pathlib import Path
+import os
 
 
 class ProteinGraphAnalyser:
     def __init__(
         self,
-        pdb_root_folder="",
-        target_folder="",
-        reference_pdb="",
-        type_option="pdb",
-        psf_files=[],
-        dcd_files=[[]],
-        sim_names=[],
+        target_folder,
+        psf_file,
+        dcd_files,
+        sim_name=None,
         plot_parameters={},
     ):
-        # here set refernce file form the modal
+
         self.plot_parameters = _hf.get_plot_parameters(plot_parameters)
-        self.type_option = type_option
-        self.pdb_root_folder = pdb_root_folder + "/"
-        self.workfolder = (
-            _hf.create_directory(f"{pdb_root_folder}/workfolder/")
-            if target_folder == ""
-            else _hf.create_directory(f"{target_folder}/workfolder/")
-        )
+        self.workfolder = _hf.create_directory(Path(target_folder, "workfolder"))
+
         self.graph_object_folder = _hf.create_directory(
-            f"{self.workfolder}/graph_objects/"
+            Path(self.workfolder, "graph_objects")
         )
+
         self.helper_files_folder = _hf.create_directory(
-            f"{self.workfolder}/.helper_files/"
+            Path(self.workfolder, ".helper_files")
         )
-        self.max_water = 0
-        self.graph_coord_objects = {}
+
         self.logger = _hf.create_logger(self.helper_files_folder)
 
-        if self.type_option == "pdb":
-            self.logger.debug("Analysis for PDB crystal structures")
-            self.file_list = _hf.get_pdb_files(self.pdb_root_folder)
-            self.reference_pdb = reference_pdb
-            self.get_reference_coordinates(self.reference_pdb)
-            self._load_structures()
+        self.psf_file = psf_file
+        self.dcd_files = dcd_files
 
-        elif self.type_option == "dcd" and len(dcd_files) and psf_files:
-            self.reference_coordinates = {}
-            self.logger.debug("Analysis for MD trajectories")
-            if len(psf_files) == len(dcd_files) == len(sim_names):
-                for i in range(len(psf_files)):
-                    self.graph_coord_objects.update(
-                        {sim_names[i]: {"psf": psf_files[i], "dcd": dcd_files[i]}}
-                    )
-            else:
-                self.logger.warning(
-                    "Not equal number of parameters. Each simulation has to have a psf file, a name and a list of dcd files."
-                )
-
-        # else: raise ValueError('Given type_option should be "pdb" or "dcd"')
-
-    def _load_structures(self):
-        self.logger.info(
-            "Loading " + str(len(self.file_list)) + " PDB crystal structures"
-        )
-        for file in self.file_list:
-            self.logger.debug("Loading structure: ", file)
-            self.logger.debug(
-                f"Number of water molecules in {file} is: {len(_hf.water_in_pdb(self.pdb_root_folder+file))}"
-            )
-            structure = _hf.load_pdb_structure(self.pdb_root_folder + file)
-            pdb_code = _hf.retrieve_pdb_code(file, ".pdb")
-            self.graph_coord_objects.update({pdb_code: {"structure": structure}})
-            self.logger.debug("Plot folders for each pdb structures are created")
-
-    def _load_exisitng_graphs(
-        self,
-        graph_files=None,
-        reference_pdb="",
-        graph_type="water_wire",
-        selection="protein",
-    ):
-        self.graph_type = graph_type
-        self.logger.info("Loading graphs for simulations")
-        self.logger.info("This step takes some time.")
-        self.reference_coordinates = {}
-
-        for i, graph_file in enumerate(graph_files):
-            _split = _hf.retrieve_pdb_code(graph_file, "_water_wire")
-            name = _split[0:-2]
-            self.max_water = int(_split[-1:])
-            self.logger.info("Loading " + name + "...")
-            graph_coord_object = _hf.pickle_load_file(
-                f"{self.helper_files_folder}{name}_{self.max_water}_water_wires_coord_objects.pickle"
-            )
-            psf = graph_coord_object[name]["psf"]
-            dcd = graph_coord_object[name]["dcd"]
-
-            self.selection = (
-                graph_coord_object[name]["selection"]
-                if "selection" in graph_coord_object[name].keys()
-                else selection
-            )
-            self.logger.info(
-                f"Loading selection from the graph calculation. Selection: {self.selection}"
-            )
-
-            wba = mdh.WireAnalysis(self.selection, psf, dcd)
-            wba.load_from_file(graph_file, reload_universe=False)
-            g = wba.filtered_graph
-            u = _mda.Universe(psf, dcd)
-            mda = u.select_atoms(str(self.selection))
-            self.graph_coord_objects[name] = {
-                "psf": psf,
-                "dcd": dcd,
-                "wba": wba,
-                "graph": g,
-                "mda": mda,
-            }
-            self.add_reference_from_structure(mda, g)
-            self.logger.info(f"{name} loading completed")
-        self.pca_positions = _hf.calculate_pca_positions(self.reference_coordinates)
-
-    def get_reference_coordinates(self, reference, save=True):
-        self.reference_coordinates = {}
-        if self.type_option == "pdb":
-            structure = _hf.load_pdb_structure(reference)
-            if hasattr(self, "selection") and self.selection != "protein":
-                selection = structure.select_atoms(
-                    f"resname BWX or {self.selection} or {_hf.water_def}"
-                )
-            else:
-                selection = structure.select_atoms(
-                    f"resname BWX or (protein and name CA) or {_hf.water_def}"
-                )
-            positions = selection.positions
-            for i, resisdue in enumerate(selection):
-                chain, res_name, res_id = (
-                    resisdue.segid,
-                    resisdue.resname,
-                    resisdue.resid,
-                )
-                res = chain + "-" + res_name + "-" + str(res_id)
-                self.reference_coordinates.update({res: positions[i]})
+        if not sim_name:
+            base = os.path.basename(psf_file)
+            self.sim_name, ext = os.path.splitext(base)
         else:
-            positions = reference.positions
-            for i, resisdue in enumerate(reference):
-                chain, res_name, res_id = (
-                    resisdue.segid,
-                    resisdue.resname,
-                    resisdue.resid,
-                )
-                res = chain + "-" + res_name + "-" + str(res_id)
-                self.reference_coordinates.update({res: positions[i]})
-
-        if save:
-            _hf.pickle_write_file(
-                self.helper_files_folder + "reference_coordinate_positions.pickle",
-                self.reference_coordinates,
-            )
-
-    def align_structures(
-        self, sequance_identity_threshold=0.75, superimposition_threshold=5
-    ):
-        self.logger.debug("Reference structure: ", self.reference_pdb)
-        self.logger.info(
-            f"Sequence identity threshold is set to: {sequance_identity_threshold*100}%"
-        )
-        self.logger.info(
-            f"Superimposition RMS threshold is set to: {superimposition_threshold}"
-        )
-        _hf.delete_directory(self.workfolder + "/.superimposed_structures/")
-        self.superimposed_structures_folder = _hf.create_directory(
-            self.workfolder + "/.superimposed_structures/"
-        )
-
-        for pdb_move in self.file_list:
-            struct = None
-            pdb_code = _hf.retrieve_pdb_code(pdb_move, ".pdb")
-            ref_aligned, move_aligned = _hf.align_sequence(
-                self.logger,
-                self.reference_pdb,
-                self.pdb_root_folder + pdb_move,
-                threshold=sequance_identity_threshold,
-            )
-            if (ref_aligned is not None) and (move_aligned is not None):
-                struct = _hf.superimpose_aligned_atoms(
-                    self.logger,
-                    ref_aligned,
-                    self.reference_pdb,
-                    move_aligned,
-                    self.pdb_root_folder + pdb_move,
-                    save_file_to=self.superimposed_structures_folder + pdb_move,
-                    superimposition_threshold=superimposition_threshold,
-                )
-                if struct is not None:
-                    # conservation = None
-                    # if self.conservation_info:
-                    #    conservation =  _hf.get_residue_conservations(self.pdb_root_folder+pdb_move, self.conservation_info)
-                    self.graph_coord_objects.update(
-                        {
-                            pdb_code: {
-                                "structure": struct,
-                                "file": self.superimposed_structures_folder
-                                + pdb_code
-                                + "_superimposed.pdb",
-                            }
-                        }
-                    )
-            if struct is None:
-                self.graph_coord_objects.pop(pdb_code)
-
-    def number_of_waters_per_structure(self):
-        for file in self.file_list:
-            waters = _hf.water_in_pdb(self.pdb_root_folder + file)
-            self.logger.info(f"Number of water molecules in {file} is: {len(waters)}")
+            self.sim_name = sim_name
 
     def add_reference_from_structure(self, s, g):
         residuewise = len(list(g.nodes)[0].split("-")) == 3
@@ -252,10 +74,12 @@ class ProteinGraphAnalyser:
         include_waters=True,
         distance=3.5,
         cut_angle=60.0,
-        check_angle=False,
+        check_angle=True,
         additional_donors=[],
         additional_acceptors=[],
         calcualte_distance=True,
+        step=1,
+        residuewise=True,
     ):
         self.distance = distance
         self.cut_angle = cut_angle
@@ -1030,12 +854,6 @@ class ProteinGraphAnalyser:
                             ],
                         )
                 plt.close()
-
-    def get_clusters(self):
-        pass
-
-    def plot_clusters(self):
-        self.get_clusters()
 
     def get_linear_lenght(self, objects, graph):
         connected_components = _hf.get_connected_components(graph)
