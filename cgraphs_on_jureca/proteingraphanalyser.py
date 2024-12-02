@@ -43,30 +43,39 @@ class ProteinGraphAnalyser:
         else:
             self.sim_name = sim_name
 
-    def add_reference_from_structure(self, s, g):
-        residuewise = len(list(g.nodes)[0].split("-")) == 3
-        for i, resisdue in enumerate(s):
+        self.graph_coord_object = {
+            "sim_name": self.sim_name,
+            "psf": self.psf_file,
+            "dcd": self.dcd_files,
+        }
+        _hf.pickle_write_file(
+            Path(
+                self.helper_files_folder,
+                f"{self.sim_name}_{self.max_water}_water_wires_coord_objects.pickle",
+            ),
+            self.graph_coord_object,
+        )
+
+    def _add_node_positions_from_structure(self, selected_atoms, graph, residuewise):
+        node_positions = {}
+        for i, resisdue in enumerate(selected_atoms):
+            chain, res_name, res_id = (
+                resisdue.segid,
+                resisdue.resname,
+                resisdue.resid,
+            )
             if residuewise:
-                chain, res_name, res_id = (
-                    resisdue.segid,
-                    resisdue.resname,
-                    resisdue.resid,
-                )
                 res = f"{chain}-{res_name}-{res_id}"
             else:
-                chain, res_name, res_id, atom_name = (
-                    resisdue.segid,
-                    resisdue.resname,
-                    resisdue.resid,
-                    resisdue.name,
-                )
+                atom_name = resisdue.name
                 res = f"{chain}-{res_name}-{res_id}-{atom_name}"
-            if res not in self.reference_coordinates.keys() and res in g.nodes:
-                self.reference_coordinates.update({res: resisdue.position})
+
+            if res in graph.nodes:
+                node_positions.update({res: resisdue.position})
+        return node_positions
 
     def calculate_graphs(
         self,
-        graph_type="water_wire",
         selection="protein",
         max_water=3,
         exclude_backbone_backbone=True,
@@ -80,278 +89,111 @@ class ProteinGraphAnalyser:
         calcualte_distance=True,
         step=1,
         residuewise=True,
+        wrap_dcd=False,
     ):
         self.distance = distance
-        self.cut_angle = cut_angle
+        self.logger.info(f"H-bond criteria cut off distance: {self.distance} A")
+
         self.include_waters = include_waters
         self.include_backbone_sidechain = include_backbone_sidechain
-        assert type(additional_donors) is list and type(additional_acceptors) is list
+
+        self.selection = selection
+        self.logger.info(f"Atom selection string: {self.selection}")
+
+        self.max_water = max_water
+        self.logger.info(
+            f"Maximum number of water in water bridges is set to : {self.max_water}"
+        )
+
         if additional_donors or additional_acceptors:
             self.logger.info(
-                f"List of additional donors: {additional_donors}\nList of additional acceptors: {additional_acceptors}"
+                f"""List of additional donors: {additional_donors}
+                List of additional acceptors: {additional_acceptors}
+                """
             )
-        if selection != "protein":
-            self.logger.info(f"Atom selection string: {selection}")
-        self.graph_type = graph_type
-        self.logger.info(f"Calculating graphs for {self.graph_type} analysis.")
-        if self.type_option == "pdb":
-            self.selection = f"({selection}) or resname BWX"
-            # self.get_reference_coordinates(self.reference_pdb)
-            try:
-                self.graph_type in ["water_wire", "hbond"]
-            except ValueError:
-                raise ValueError('Given graph_type has to be "water_wire" or "hbond"')
-            self.logger.info(f"H-bond criteria cut off distance: {distance} A")
-            if check_angle:
-                self.logger.info(f"H-bond criteria cut off angle: {cut_angle} degree")
-            if self.graph_type == "water_wire":
-                self.water_graphs_folder = _hf.create_directory(
-                    f"{self.graph_object_folder}{self.max_water}_water_wires/"
-                )
-                self.logger.info(
-                    f"Maximum number of water in water bridges is set to: {max_water}"
-                )
-                self.max_water = max_water
-                for name, objects in self.graph_coord_objects.items():
-                    pdb_file, pdb_code = objects["file"], name
-                    if len(_hf.water_in_pdb(pdb_file)) == 0:
-                        self.logger.warning(
-                            f"There are no water molecules in {pdb_code}. Water wire can not be calculated."
-                        )
-                    else:
-                        self.logger.info(
-                            f"Calculating {self.graph_type} graph for: {pdb_code}"
-                        )
-                        if len(_hf.water_in_pdb(pdb_file)) == 0:
-                            self.logger.warning(
-                                f"There are no water molecules in {pdb_code}. Water wire can not be calculated. Please use the H-bond network option."
-                            )
-                        else:
-                            try:
-                                wba = mdh.WireAnalysis(
-                                    self.selection,
-                                    pdb_file,
-                                    residuewise=True,
-                                    check_angle=check_angle,
-                                    add_donors_without_hydrogen=not check_angle,
-                                    additional_donors=additional_donors,
-                                    additional_acceptors=additional_acceptors,
-                                    distance=distance,
-                                    cut_angle=cut_angle,
-                                )
-                                wba.set_water_wires(max_water=max_water)
-                                wba.compute_average_water_per_wire()
-                                g = wba.filtered_graph
-                                nx.write_gpickle(
-                                    g,
-                                    self.water_graphs_folder
-                                    + pdb_code
-                                    + "_"
-                                    + self.graph_type
-                                    + "_graphs.pickle",
-                                )
-                                self.graph_coord_objects[pdb_code].update({"graph": g})
-                                tmp = copy.copy(wba)
-                                tmp._universe = None
-                                self.graph_coord_objects[pdb_code].update({"wba": tmp})
-                                edge_info = _hf.edge_info(wba, g.edges)
-                                _hf.json_write_file(
-                                    self.helper_files_folder
-                                    + pdb_code
-                                    + "_"
-                                    + self.graph_type
-                                    + "_graph_edge_info.json",
-                                    edge_info,
-                                )
-                                s = objects["structure"].select_atoms(self.selection)
-                                self.add_reference_from_structure(s, g)
-                            except:
-                                self.logger.warning(
-                                    f"Graph can't be calculated for {pdb_file}"
-                                )
 
-            elif self.graph_type == "hbond":
-                if include_backbone_sidechain:
-                    self.logger.info("Including sidechain-backbone interactions")
-                    additional_donors.append("N")
-                    additional_acceptors.append("O")
-                if not exclude_backbone_backbone:
-                    self.logger.info("Including backbone-backbone interactions")
-                for name, objects in self.graph_coord_objects.items():
-                    pdb_file, pdb_code = objects["file"], name
-                    self.logger.info(
-                        f"Calculating {self.graph_type} graph for: {pdb_code}"
-                    )
-                    try:
-                        hba = mdh.HbondAnalysis(
-                            self.selection,
-                            pdb_file,
-                            residuewise=True,
-                            check_angle=check_angle,
-                            add_donors_without_hydrogen=not check_angle,
-                            additional_donors=additional_donors,
-                            additional_acceptors=additional_acceptors,
-                            distance=distance,
-                            cut_angle=cut_angle,
-                        )
-                        hba.set_hbonds_in_selection(
-                            exclude_backbone_backbone=exclude_backbone_backbone
-                        )
-                        if len(_hf.water_in_pdb(pdb_file)) > 0 and include_waters:
-                            hba.set_hbonds_in_selection_and_water_around(distance)
-                        g = hba.filtered_graph
-                        nx.write_gpickle(
-                            g,
-                            self.graph_object_folder
-                            + pdb_code
-                            + "_"
-                            + self.graph_type
-                            + "_graphs.pickle",
-                        )
-                        self.graph_coord_objects[pdb_code].update({"graph": g})
-                        s = objects["structure"].select_atoms(
-                            f"resname BWX or {self.selection} or {_hf.water_def}"
-                        )
-                        self.add_reference_from_structure(s, g)
-                    except:
-                        self.logger.warning(f"Graph can't be calculated for {pdb_file}")
+        self.water_graphs_folder = _hf.create_directory(
+            Path(self.graph_object_folder, f"{self.max_water}_water_wires")
+        )
 
-                    if calcualte_distance:
-                        try:
-                            dist_hba = mdh.HbondAnalysis(
-                                self.selection,
-                                pdb_file,
-                                residuewise=False,
-                                check_angle=check_angle,
-                                add_donors_without_hydrogen=not check_angle,
-                                additional_donors=additional_donors,
-                                additional_acceptors=additional_acceptors,
-                                distance=distance,
-                                cut_angle=cut_angle,
-                            )
-                            dist_hba.set_hbonds_in_selection(
-                                exclude_backbone_backbone=exclude_backbone_backbone
-                            )
-                            if len(_hf.water_in_pdb(pdb_file)) > 0 and include_waters:
-                                dist_hba.set_hbonds_in_selection_and_water_around(
-                                    distance
-                                )
-                            dist_g = dist_hba.filtered_graph
-                            nx.write_gpickle(
-                                dist_g,
-                                self.graph_object_folder
-                                + pdb_code
-                                + "_"
-                                + self.graph_type
-                                + "_graphs.pickle",
-                            )
-                            self.graph_coord_objects[pdb_code].update(
-                                {"dist_graph": dist_g}
-                            )
-                        except:
-                            self.logger.warning(
-                                f"Graph can't be calculated for {pdb_file}"
-                            )
+        if check_angle:
+            self.logger.info(f"H-bond criteria cut off angle: {cut_angle} degree")
 
-        elif self.type_option == "dcd" and self.graph_type == "water_wire":
-            self.selection = selection
-            self.max_water = max_water
-            self.water_graphs_folder = _hf.create_directory(
-                self.graph_object_folder + str(self.max_water) + "_water_wires/"
+        self.residuewise = residuewise
+        self.logger.info(
+            f"Calculating H-bonds {'residuewise' if self.residuewise else 'atomwise'}"
+        )
+
+        self.logger.info(
+            f"Loading {len(self.dcd_files)} trajectory files for {self.sim_name}"
+        )
+        self.logger.info("This step takes some time...")
+        wba = mdh.WireAnalysis(
+            self.selection,
+            self.psf_file,
+            self.dcd_files,
+            residuewise=self.residuewise,
+            check_angle=check_angle,
+            add_donors_without_hydrogen=not check_angle,
+            additional_donors=additional_donors,
+            additional_acceptors=additional_acceptors,
+            distance=distance,
+            cut_angle=cut_angle,
+            wrap_dcd=wrap_dcd,
+        )
+        wba.set_water_wires(water_in_convex_hull=max_water, max_water=max_water)
+        wba.compute_average_water_per_wire()
+        self.graph_coord_object.update({"wba": wba})
+        wba_loc = f"{self.sim_name}_{self.max_water}_water_wires_graph.pickle"
+        wba.dump_to_file(
+            Path(
+                self.water_graphs_folder,
+                wba_loc,
             )
-            self.logger.info(
-                f"Maximum number of water in water bridges is set to : {max_water}"
-            )
-            self.logger.info(f"H-bond criteria cut off distance: {distance} A")
-            if check_angle:
-                self.logger.info(f"H-bond criteria cut off angle: {cut_angle} degree")
-            for i, (name, files) in enumerate(self.graph_coord_objects.items()):
-                self.logger.info(
-                    f"Loading "
-                    + str(len(files["dcd"]))
-                    + " trajectory files for "
-                    + name
-                )
-                self.logger.info("This step takes some time.")
-                wba = mdh.WireAnalysis(
-                    self.selection,
-                    files["psf"],
-                    files["dcd"],
-                    # residuewise=False,
-                    residuewise=True,
-                    check_angle=check_angle,
-                    add_donors_without_hydrogen=not check_angle,
-                    additional_donors=additional_donors,
-                    additional_acceptors=additional_acceptors,
-                    distance=distance,
-                    cut_angle=cut_angle,
-                )
-                wba.set_water_wires(water_in_convex_hull=max_water, max_water=max_water)
-                wba.compute_average_water_per_wire()
-                self.graph_coord_objects[name].update({"selection": self.selection})
-                _hf.pickle_write_file(
-                    self.helper_files_folder
-                    + name
-                    + "_"
-                    + str(self.max_water)
-                    + "_water_wires_coord_objects.pickle",
-                    {name: self.graph_coord_objects[name]},
-                )
-                g = wba.filtered_graph
-                self.graph_coord_objects[name].update({"graph": g})
-                tmp = copy.copy(wba)
-                tmp._universe = None
-                self.graph_coord_objects[name].update({"wba": tmp})
-                u = _mda.Universe(files["psf"], files["dcd"])
-                mda = u.select_atoms(self.selection)
-                self.graph_coord_objects[name].update({"mda": mda})
-                wba_loc = (
-                    self.water_graphs_folder
-                    + name
-                    + "_"
-                    + str(self.max_water)
-                    + "_water_wires_graph.pickle"
-                )
-                wba.dump_to_file(wba_loc)
-                nx.write_gpickle(
-                    g,
-                    self.helper_files_folder
-                    + name
-                    + "_"
-                    + self.graph_type
-                    + "_"
-                    + str(max_water)
-                    + "_water_nx_graphs.pickle",
-                )
-                edge_info = _hf.edge_info(wba, g.edges)
-                _hf.json_write_file(
-                    self.helper_files_folder
-                    + name
-                    + "_"
-                    + self.graph_type
-                    + "_"
-                    + str(max_water)
-                    + "_water_graph_edge_info.json",
-                    edge_info,
-                )
-                self.add_reference_from_structure(mda, g)
-                # if i == 0:
-                #     self.get_reference_coordinates(mda)
-                #     self.pca_positions = _hf.calculate_pca_positions(self.reference_coordinates)
-                self.logger.info("Graph object is saved as: " + wba_loc)
+        )
 
-        else:
-            raise ValueError(
-                'For dcd analysis only graph_type="water_wire" is supported.'
-            )
-        self.pca_positions = _hf.calculate_pca_positions(self.reference_coordinates)
+        self.graph = wba.filtered_graph
+        self.graph_coord_object.update({"graph": self.graph})
+
+        # tmp = copy.copy(wba)
+        # tmp._universe = None
+
+        u = _mda.Universe(self.psf_file, self.dcd_files)
+        selected_atoms = u.select_atoms(self.selection)
+        self.graph_coord_object.update({"selected_atoms": selected_atoms})
+
+        nx.write_gpickle(
+            self.graph,
+            Path(
+                self.helper_files_folder,
+                f"{self.sim_name}_{self.max_water}_water_nx_graphs.pickle",
+            ),
+        )
+
+        _hf.json_write_file(
+            Path(
+                self.helper_files_folder,
+                f"{self.sim_name}_{self.max_water}_water_graph_edge_info.json",
+            ),
+            _hf.edge_info(wba, self.graph.edges),
+        )
+
+        self.node_positions = self._add_node_positions_from_structure(
+            selected_atoms, self.graph, self.residuewise
+        )
+        # if i == 0:
+        #     self.get_node_positions(mda)
+        #     self.pca_positions = _hf.calculate_pca_positions(self.node_positions)
+        self.logger.info("Graph object is saved as: " + wba_loc)
+
+        self.pca_positions = _hf.calculate_pca_positions(self.node_positions)
 
     def _get_node_positions(self, objects, pca=True):
         node_pos = {}
         for node in objects["graph"].nodes:
             n = _hf.get_node_name(node)
             if (
-                n not in self.reference_coordinates.keys()
+                n not in self.node_positions.keys()
                 or n.split("-")[1] in _hf.water_types
             ):
                 chain_id, res_name, res_id = _hf.get_node_name_pats(n)
@@ -372,7 +214,7 @@ class ProteinGraphAnalyser:
                 if coords is not None:
                     node_pos.update({n: list(coords)})
             else:
-                node_pos.update({n: self.reference_coordinates[n]})
+                node_pos.update({n: self.node_positions[n]})
         if pca:
             return _hf.calculate_pca_positions(node_pos)
         else:
