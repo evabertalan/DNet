@@ -60,6 +60,7 @@ class WireAnalysis(NetworkAnalysis):
         residuewise=True,
         add_donors_without_hydrogen=False,
         restore_filename=None,
+        wrap_dcd=False,
     ):
 
         super(WireAnalysis, self).__init__(
@@ -80,6 +81,7 @@ class WireAnalysis(NetworkAnalysis):
             residuewise=residuewise,
             add_donors_without_hydrogen=add_donors_without_hydrogen,
             restore_filename=restore_filename,
+            wrap_dcd=wrap_dcd,
         )
 
         if restore_filename != None:

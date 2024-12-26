@@ -44,6 +44,7 @@ class BasicFunctionality(object):
         step=1,
         ions=[],
         restore_filename=None,
+        wrap_dcd=False,
     ):
 
         if restore_filename != None:
@@ -59,7 +60,10 @@ class BasicFunctionality(object):
         self._trajectories = trajectories
         if trajectories != None:
             self._universe = _MDAnalysis.Universe(structure, trajectories)
-            self._universe.trajectory.add_transformations(wrap(self._universe.atoms))
+            if wrap_dcd:
+                self._universe.trajectory.add_transformations(
+                    wrap(self._universe.atoms)
+                )
         else:
             self._universe = _MDAnalysis.Universe(structure)
         self._trajectory_slice = slice(
