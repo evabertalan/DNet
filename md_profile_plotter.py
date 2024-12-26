@@ -18,6 +18,7 @@ class MDProfilePlotter:
         total_water_around_res_csv,
         path_to_save_output,
         sim_name,
+        step=1,
     ):
         self.path_to_save_output = path_to_save_output
         self.sim_name = sim_name
@@ -25,13 +26,22 @@ class MDProfilePlotter:
         pKa_nodes = [("-").join(node.split("-")[0:3]) for node in graph_nodes]
 
         pKas = pd.read_csv(pKa_info_file, index_col="frame")
-        self.pKas = pKas.loc[:, pKas.columns.isin(pKa_nodes)]
+        self.pKas = pKas.loc[:, pKas.columns.isin(pKa_nodes)][::step]
         self.pKas.to_csv(
             Path(self.path_to_save_output, f"pKa_nodes_per_freame_{sim_name}.csv")
         )
 
         self.distances = pd.read_csv(distance_csv, index_col=0)
+        self.distances.to_csv(
+            Path(self.path_to_save_output, f"edge_distances_per_freame_{sim_name}.csv")
+        )
+
         self.water_numbers = pd.read_csv(water_number_csv, index_col=0)
+        self.water_numbers.to_csv(
+            Path(
+                self.path_to_save_output, f"water_aroun_atom_per_freame_{sim_name}.csv"
+            )
+        )
 
         total_water_around_res = pd.read_csv(total_water_around_res_csv, index_col=0)
         total_water_around_res.columns = (
@@ -40,6 +50,12 @@ class MDProfilePlotter:
         self.total_water_around_res = total_water_around_res.loc[
             :, ~total_water_around_res.columns.duplicated()
         ]
+        self.total_water_around_res.to_csv(
+            Path(
+                self.path_to_save_output,
+                f"total_water_around_res_per_freame_{sim_name}.csv",
+            )
+        )
 
     def _get_H_bond_nodes(self, file):
         nodes = None
@@ -127,7 +143,7 @@ class MDProfilePlotter:
         peaks, properties = find_peaks(smoothed_hist, prominence=0.03)
         return len(peaks)
 
-    def create_combined_plots(self):
+    def create_combined_plots(self, frame_to_time=100, end_frame_pmf=20000):
 
         pKa_color = "#227351"
         total_water_color = "#8f5038"
@@ -135,14 +151,12 @@ class MDProfilePlotter:
         dist_color = "#335080"
         text_fs = 32
 
-        frame_to_time = 100
-        end_frame_pmf = 20000
         shift = 19
         num_bins = 100
 
         for i, pKa_column in enumerate(self.pKas.columns):
             total_number_of_states = 0
-            distcance_columns = [
+            dist_columns = [
                 col
                 for col in self.distances.columns
                 if any(
@@ -150,14 +164,31 @@ class MDProfilePlotter:
                     for part in col.split(" - ")
                 )
             ]
-            water_columns = [
-                col
-                for col in self.water_numbers.columns
-                if any(
-                    ("-").join(part.split("-")[0:3]) == pKa_column
-                    for part in col.split(" - ")
+
+            # for plotting we need to sort the columns consistently:
+            rearranged_dist_columns = [
+                (
+                    edge
+                    if pKa_column == ("-").join(edge.split(" - ")[0].split("-")[0:3])
+                    else " - ".join(edge.split(" - ")[::-1])
                 )
+                for edge in dist_columns
             ]
+            distcance_columns = sorted(
+                rearranged_dist_columns,
+                key=lambda pair: int(pair.split(" - ")[1].split("-")[2]),
+            )
+
+            water_columns = sorted(
+                [
+                    col
+                    for col in self.water_numbers.columns
+                    if any(
+                        ("-").join(part.split("-")[0:3]) == pKa_column
+                        for part in col.split(" - ")
+                    )
+                ]
+            )
 
             fig, ax = plt.subplots(
                 nrows=2 + len(distcance_columns) + len(water_columns),
@@ -315,10 +346,16 @@ class MDProfilePlotter:
 
             for j, dist_col in enumerate(distcance_columns):
 
+                og_column_name = (
+                    dist_col
+                    if dist_col in self.distances.columns
+                    else " - ".join(dist_col.split(" - ")[::-1])
+                )
+
                 x = j + 2 + len(water_columns)
                 ax[x, 0].plot(
                     self.distances.index / frame_to_time,
-                    self.distances[dist_col],
+                    self.distances[og_column_name],
                     color=dist_color,
                 )
                 ax[x, 0] = self._ax_util(
@@ -329,7 +366,7 @@ class MDProfilePlotter:
                 )
 
                 ax[x, 1].hist(
-                    self.distances[dist_col],
+                    self.distances[og_column_name],
                     bins=num_bins,
                     edgecolor=dist_color,
                     color=dist_color,
@@ -345,12 +382,12 @@ class MDProfilePlotter:
                 ]
 
                 num_substates = self.count_substates(
-                    last_x_dist[dist_col], num_bins=num_bins
+                    last_x_dist[og_column_name], num_bins=num_bins
                 )
                 total_number_of_states += num_substates
 
                 ax[x, 2].hist(
-                    last_x_dist[dist_col],
+                    last_x_dist[og_column_name],
                     bins=num_bins,
                     edgecolor=dist_color,
                     color=dist_color,
@@ -371,14 +408,14 @@ class MDProfilePlotter:
                 )
 
                 bin_centers, PMF = self.calculate_PMF(
-                    last_x_dist[dist_col], num_bins=num_bins
+                    last_x_dist[og_column_name], num_bins=num_bins
                 )
 
                 pmfs = pd.DataFrame(data={"distance": bin_centers, "PMF": PMF})
                 pmfs.to_csv(
                     Path(
                         self.path_to_save_output,
-                        f"PMF_{self.sim_name}_{dist_col.replace(' - ', '__')}.csv",
+                        f"PMF_{self.sim_name}_{self._shift_resid_index(dist_col.replace(' - ', '__'), shift)}.csv",
                     )
                 )
 
@@ -387,7 +424,7 @@ class MDProfilePlotter:
                     ax[x, 3], xlabel="PMF (kcal/mol)", ylabel="Distance (Å)"
                 )
 
-            print("total_number_of_states", total_number_of_states)
+            # print("total_number_of_states", total_number_of_states)
             fig.tight_layout(h_pad=4.0)
             fig.savefig(
                 Path(
