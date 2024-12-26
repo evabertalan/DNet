@@ -47,18 +47,18 @@ class BasicFunctionality(object):
         wrap_dcd=False,
     ):
 
-        if restore_filename != None:
+        if restore_filename is not None:
             self.load_from_file(restore_filename)
             return
 
-        if selection == None:
+        if selection is None:
             raise AssertionError("No selection string.")
-        if structure == None:
+        if structure is None:
             raise AssertionError("No structure file path.")
         self._selection = selection
         self._structure = structure
         self._trajectories = trajectories
-        if trajectories != None:
+        if trajectories is not None:
             self._universe = _MDAnalysis.Universe(structure, trajectories)
             if wrap_dcd:
                 self._universe.trajectory.add_transformations(
@@ -127,7 +127,7 @@ class BasicFunctionality(object):
             self._reload_universe()
 
     def _reload_universe(self):
-        if self._trajectories != None:
+        if self._trajectories is not None:
             self._universe = _MDAnalysis.Universe(self._structure, self._trajectories)
         else:
             self._universe = _MDAnalysis.Universe(self._structure)
@@ -148,7 +148,7 @@ class BasicFunctionality(object):
         self._generate_filtered_graph_from_filtered_results()
 
     def _save_or_draw(self, filename, data=None, return_figure=False):
-        if filename != None:
+        if filename is not None:
             end = filename.split(".")[-1]
             if end == "eps":
                 _plt.text.usetex = True
