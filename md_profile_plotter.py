@@ -400,7 +400,7 @@ class MDProfilePlotter:
                 ax[x, 2].text(
                     0.95,
                     0.95,
-                    f"last {end_frame_pmf/frame_to_time:.0f} ns\n{num_substates} substates",
+                    f"last {end_frame_pmf/frame_to_time:.0f} ns\nPN = {num_substates}",
                     horizontalalignment="right",
                     verticalalignment="top",
                     transform=ax[x, 2].transAxes,
