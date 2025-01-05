@@ -143,7 +143,9 @@ class MDProfilePlotter:
         peaks, properties = find_peaks(smoothed_hist, prominence=0.03)
         return len(peaks)
 
-    def create_combined_plots(self, frame_to_time=100, end_frame_pmf=20000):
+    def create_combined_plots(
+        self, frame_to_time=100, end_frame_pmf=20000, plot_formats=["png"]
+    ):
 
         pKa_color = "#227351"
         total_water_color = "#8f5038"
@@ -444,7 +446,7 @@ class MDProfilePlotter:
 
             # print("total_number_of_states", total_number_of_states)
             fig.tight_layout(h_pad=4.0)
-            for img_format in ["png", "svg"]:
+            for img_format in plot_formats:
                 fig.savefig(
                     Path(
                         self.path_to_save_output,
