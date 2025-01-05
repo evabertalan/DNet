@@ -22,8 +22,8 @@ class MDProfilePlotter:
     ):
         self.path_to_save_output = path_to_save_output
         self.sim_name = sim_name
-        graph_nodes = self._get_H_bond_nodes(cgraphs_info_file)
-        pKa_nodes = [("-").join(node.split("-")[0:3]) for node in graph_nodes]
+        self.graph_nodes = self._get_H_bond_nodes(cgraphs_info_file)
+        pKa_nodes = [("-").join(node.split("-")[0:3]) for node in self.graph_nodes]
 
         pKas = pd.read_csv(pKa_info_file, index_col="frame")
         self.pKas = pKas.loc[:, pKas.columns.isin(pKa_nodes)][::step]
@@ -154,13 +154,17 @@ class MDProfilePlotter:
         shift = 19
         num_bins = 100
 
-        for i, pKa_column in enumerate(self.pKas.columns):
+        for graph_node in self.graph_nodes:
+            graph_node = ("-").join(graph_node.split("-")[0:3])
             total_number_of_states = 0
+
+            pKa_column = graph_node if graph_node in self.pKas.columns else None
+
             dist_columns = [
                 col
                 for col in self.distances.columns
                 if any(
-                    ("-").join(part.split("-")[0:3]) == pKa_column
+                    ("-").join(part.split("-")[0:3]) == graph_node
                     for part in col.split(" - ")
                 )
             ]
@@ -169,7 +173,7 @@ class MDProfilePlotter:
             rearranged_dist_columns = [
                 (
                     edge
-                    if pKa_column == ("-").join(edge.split(" - ")[0].split("-")[0:3])
+                    if graph_node == ("-").join(edge.split(" - ")[0].split("-")[0:3])
                     else " - ".join(edge.split(" - ")[::-1])
                 )
                 for edge in dist_columns
@@ -184,102 +188,112 @@ class MDProfilePlotter:
                     col
                     for col in self.water_numbers.columns
                     if any(
-                        ("-").join(part.split("-")[0:3]) == pKa_column
+                        ("-").join(part.split("-")[0:3]) == graph_node
                         for part in col.split(" - ")
                     )
                 ]
             )
+            pka_rows = 1 if pKa_column else 0
+            row = 0
 
             fig, ax = plt.subplots(
-                nrows=2 + len(distcance_columns) + len(water_columns),
+                nrows=pka_rows + 1 + len(distcance_columns) + len(water_columns),
                 ncols=4,
                 figsize=(40, (2 + len(distcance_columns) + len(water_columns)) * 8),
                 gridspec_kw={"width_ratios": [2, 1, 1, 1]},
             )
-            ax[0, 0].plot(
-                self.pKas.index / frame_to_time, self.pKas[pKa_column], color=pKa_color
-            )
-            ax[0, 0] = self._ax_util(
-                ax[0, 0],
-                title=self._shift_resid_index(pKa_column, shift),
-                xlabel="Time (ns)",
-                ylabel="pKa",
-            )
+            if pKa_column:
+                ax[row, 0].plot(
+                    self.pKas.index / frame_to_time,
+                    self.pKas[pKa_column],
+                    color=pKa_color,
+                )
+                ax[row, 0] = self._ax_util(
+                    ax[0, 0],
+                    title=self._shift_resid_index(pKa_column, shift),
+                    xlabel="Time (ns)",
+                    ylabel="pKa",
+                )
 
-            ax[0, 1].hist(
-                self.pKas[pKa_column],
-                bins=num_bins,
-                edgecolor=pKa_color,
-                color=pKa_color,
-                alpha=0.4,
-                orientation="horizontal",
-            )
-            ax[0, 1] = self._ax_util(ax[0, 1], xlabel="Frequency", ylabel="pKa")
+                ax[row, 1].hist(
+                    self.pKas[pKa_column],
+                    bins=num_bins,
+                    edgecolor=pKa_color,
+                    color=pKa_color,
+                    alpha=0.4,
+                    rasterized=True,
+                    orientation="horizontal",
+                )
+                ax[row, 1] = self._ax_util(ax[0, 1], xlabel="Frequency", ylabel="pKa")
 
-            last_x_pKa = self.pKas[
-                self.pKas.index > max(self.pKas.index) - end_frame_pmf
-            ]
-            ax[0, 2].hist(
-                last_x_pKa[pKa_column],
-                bins=num_bins,
-                edgecolor=pKa_color,
-                color=pKa_color,
-                alpha=0.4,
-                orientation="horizontal",
-            )
-            ax[0, 2] = self._ax_util(ax[0, 2], xlabel="Frequency", ylabel="pKa")
-            ax[0, 2].text(
-                0.95,
-                0.95,
-                f"last {end_frame_pmf/frame_to_time:.0f} ns",
-                horizontalalignment="right",  # Align text to the right
-                verticalalignment="top",  # Align text to the top
-                transform=ax[0, 2].transAxes,  # Use normalized coordinates (0 to 1)
-                fontsize=text_fs,
-            )
-            ax[0, 3].axis("off")
+                last_x_pKa = self.pKas[
+                    self.pKas.index > max(self.pKas.index) - end_frame_pmf
+                ]
+                ax[row, 2].hist(
+                    last_x_pKa[pKa_column],
+                    bins=num_bins,
+                    edgecolor=pKa_color,
+                    color=pKa_color,
+                    alpha=0.4,
+                    rasterized=True,
+                    orientation="horizontal",
+                )
+                ax[row, 2] = self._ax_util(ax[0, 2], xlabel="Frequency", ylabel="pKa")
+                ax[row, 2].text(
+                    0.95,
+                    0.95,
+                    f"last {end_frame_pmf/frame_to_time:.0f} ns",
+                    horizontalalignment="right",  # Align text to the right
+                    verticalalignment="top",  # Align text to the top
+                    transform=ax[0, 2].transAxes,  # Use normalized coordinates (0 to 1)
+                    fontsize=text_fs,
+                )
+                ax[row, 3].axis("off")
+                row += 1
 
-            ax[1, 0].plot(
+            ax[row, 0].plot(
                 self.total_water_around_res.index / frame_to_time,
-                self.total_water_around_res[pKa_column],
+                self.total_water_around_res[graph_node],
                 color=total_water_color,
             )
-            ax[1, 0] = self._ax_util(
-                ax[1, 0],
-                title=self._shift_resid_index(pKa_column, shift),
+            ax[row, 0] = self._ax_util(
+                ax[row, 0],
+                title=self._shift_resid_index(graph_node, shift),
                 xlabel="Time (ns)",
                 ylabel="#waters",
                 only_integers=True,
             )
 
-            ax[1, 1].hist(
-                self.total_water_around_res[pKa_column],
+            ax[row, 1].hist(
+                self.total_water_around_res[graph_node],
                 bins=num_bins,
                 edgecolor=total_water_color,
                 color=total_water_color,
                 alpha=0.4,
+                rasterized=True,
                 orientation="horizontal",
             )
-            ax[1, 1] = self._ax_util(
-                ax[1, 1], xlabel="Frequency", ylabel="#waters", only_integers=True
+            ax[row, 1] = self._ax_util(
+                ax[row, 1], xlabel="Frequency", ylabel="#waters", only_integers=True
             )
 
             last_x_total_water = self.total_water_around_res[
                 self.total_water_around_res.index
                 > max(self.total_water_around_res.index) - end_frame_pmf
             ]
-            ax[1, 2].hist(
-                last_x_total_water[pKa_column],
+            ax[row, 2].hist(
+                last_x_total_water[graph_node],
                 bins=num_bins,
                 edgecolor=total_water_color,
                 color=total_water_color,
                 alpha=0.4,
+                rasterized=True,
                 orientation="horizontal",
             )
-            ax[1, 2] = self._ax_util(
-                ax[1, 2], xlabel="Frequency", ylabel="#waters", only_integers=True
+            ax[row, 2] = self._ax_util(
+                ax[row, 2], xlabel="Frequency", ylabel="#waters", only_integers=True
             )
-            ax[1, 2].text(
+            ax[row, 2].text(
                 0.95,
                 0.95,
                 f"last {end_frame_pmf/frame_to_time:.0f} ns",
@@ -288,10 +302,10 @@ class MDProfilePlotter:
                 transform=ax[1, 2].transAxes,  # Use normalized coordinates (0 to 1)
                 fontsize=text_fs,
             )
-            ax[1, 3].axis("off")
+            ax[row, 3].axis("off")
 
             for k, wat_col in enumerate(water_columns):
-                x = 2 + k
+                x = pka_rows + 1 + k
 
                 ax[x, 0].plot(
                     self.water_numbers.index / frame_to_time,
@@ -312,6 +326,7 @@ class MDProfilePlotter:
                     edgecolor=water_color,
                     color=water_color,
                     alpha=0.4,
+                    rasterized=True,
                     orientation="horizontal",
                 )
                 ax[x, 1] = self._ax_util(
@@ -328,6 +343,7 @@ class MDProfilePlotter:
                     edgecolor=water_color,
                     color=water_color,
                     alpha=0.4,
+                    rasterized=True,
                     orientation="horizontal",
                 )
                 ax[x, 2] = self._ax_util(
@@ -352,7 +368,7 @@ class MDProfilePlotter:
                     else " - ".join(dist_col.split(" - ")[::-1])
                 )
 
-                x = j + 2 + len(water_columns)
+                x = 1 + j + pka_rows + len(water_columns)
                 ax[x, 0].plot(
                     self.distances.index / frame_to_time,
                     self.distances[og_column_name],
@@ -371,6 +387,7 @@ class MDProfilePlotter:
                     edgecolor=dist_color,
                     color=dist_color,
                     alpha=0.4,
+                    rasterized=True,
                     orientation="horizontal",
                 )
                 ax[x, 1] = self._ax_util(
@@ -392,6 +409,7 @@ class MDProfilePlotter:
                     edgecolor=dist_color,
                     color=dist_color,
                     alpha=0.4,
+                    rasterized=True,
                     orientation="horizontal",
                 )
                 ax[x, 2] = self._ax_util(
@@ -426,9 +444,11 @@ class MDProfilePlotter:
 
             # print("total_number_of_states", total_number_of_states)
             fig.tight_layout(h_pad=4.0)
-            fig.savefig(
-                Path(
-                    self.path_to_save_output,
-                    f"{self.sim_name}_{self._shift_resid_index(pKa_column, shift)}_pKa_dist_combined.png",
+            for img_format in ["png", "svg"]:
+                fig.savefig(
+                    Path(
+                        self.path_to_save_output,
+                        f"{self.sim_name}_{self._shift_resid_index(graph_node, shift)}_dist_combined.{img_format}",
+                    ),
+                    format=img_format,
                 )
-            )
