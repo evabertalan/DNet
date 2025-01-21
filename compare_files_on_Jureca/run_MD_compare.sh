@@ -22,7 +22,7 @@ WORKFOLDER=/Users/evabertalan/Documents/projects/cgraphs/to_organize/test_cgraph
 
 mkdir -p $WORKFOLDER
 
-python3 -m compare_two_MD  "$PSF_FILE1" "$PSF_FILE2" "$DCD_FILES1" "$DCD_FILES2" "yellow" "purple"  "$WORKFOLDER"  >> "$LOGFILE" 2>&1
+python3 -m compare_two_MD  "$PSF_FILE1"  "$PSF_FILE2" "$WORKFOLDER"  --dcd1 $DCD_FILES1 --dcd2 $DCD_FILES2 --color1 "yellow" --color2 "purple"  >> "$LOGFILE" 2>&1
 
 
 # =====================================

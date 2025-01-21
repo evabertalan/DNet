@@ -28,45 +28,51 @@ def MD_compare_two(psf1, psf2, dcd1, dcd2, name1, name2, color1, color2, target_
 
 def main():
     parser = argparse.ArgumentParser(description="")
-    dcd_1 = sys.argv[1].split()
-
-    # The second positional argument is the second list of files (list2)
-    dcd_2 = sys.argv[2].split()
-
-    parser.add_argument("psf_1", help="")
-    parser.add_argument("psf_2", help="")
-    parser.add_argument("color1", help="")
-    parser.add_argument("color2", help="")
+    parser.add_argument("psf1", help="")
+    parser.add_argument("psf2", help="")
     parser.add_argument(
         "workfolder",
     )
 
+    parser.add_argument(
+        "--dcd1",
+        nargs="+",
+        help="Path to the DCD files. The path can contain regex to select multiple files by a name pattern.",
+    )
+    parser.add_argument(
+        "--dcd2",
+        nargs="+",
+        help="Path to the DCD files. The path can contain regex to select multiple files by a name pattern.",
+    )
+    parser.add_argument("--color1", help="")
+    parser.add_argument("--color2", help="")
+
     args = parser.parse_args()
 
-    base_1 = os.path.basename(args.psf_1)
-    base_2 = os.path.basename(args.psf_2)
+    base_1 = os.path.basename(args.psf1)
+    base_2 = os.path.basename(args.psf2)
     base_name_1, ext = os.path.splitext(base_1)
     base_name_2, ext = os.path.splitext(base_2)
 
     dcd_files_1 = []
-    for dcd_file in dcd_1:
+    for dcd_file in args.dcd1:
         dcd_files_1 += glob.glob(dcd_file)
     dcd_files_1.sort()
 
     dcd_files_2 = []
-    for dcd_file in dcd_2:
+    for dcd_file in args.dcd2:
         dcd_files_2 += glob.glob(dcd_file)
     dcd_files_2.sort()
 
     MD_compare_two(
-        args.psf_1,
-        args.psf_2,
+        args.psf1,
+        args.psf2,
         dcd_files_1,
         dcd_files_2,
         base_name_1,
         base_name_2,
-        color1,
-        color2,
+        args.color1,
+        args.color2,
         args.workfolder,
     )
 
