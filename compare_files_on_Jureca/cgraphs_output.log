@@ -1,8 +1,0 @@
-2025-01-21 10:14:52: Starting C-Graphs calculation script...
-usage: compare_two_MD.py [-h] psf_1 psf_2 color1 color2 workfolder
-compare_two_MD.py: error: unrecognized arguments: purple /Users/evabertalan/Documents/projects/cgraphs/to_organize/test_cgraphs/cgraphs_test_for_script/jsr1_tests/compare_test_m103_vs_opt/
-2025-01-21 10:14:53: Finished C-Graphs calculation
-2025-01-21 10:15:48: Starting C-Graphs calculation script...
-usage: compare_two_MD.py [-h] psf_1 psf_2 color1 color2 workfolder
-compare_two_MD.py: error: unrecognized arguments: purple /Users/evabertalan/Documents/projects/cgraphs/to_organize/test_cgraphs/cgraphs_test_for_script/jsr1_tests/compare_test_m103_vs_opt/
-2025-01-21 10:15:49: Finished C-Graphs calculation
