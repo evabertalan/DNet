@@ -1,21 +1,21 @@
 import os
 import argparse
 import glob
-from proteingraphanalyser import ProteinGraphAnalyser
+from dnet_graphs import DNetGraphs
 
 
-def MD_conserved_graph(psf, dcds, name, target_folder):
-    MAX_WATER = 3
-    OCCUPANCY = 0.4
-    c_dcd = ProteinGraphAnalyser(
+def MD_conserved_graph(
+    psf, dcds, name, target_folder, max_water, occupancy, res_id_label_shift
+):
+    dnet_graphs = DNetGraphs(
         target_folder=target_folder,
         psf_file=psf,
         dcd_files=dcds,
         sim_name=name,
         plot_parameters={"graph_color": "#666666", "formats": ["png", "eps"]},
     )
-    c_dcd.calculate_graphs(
-        max_water=MAX_WATER,
+    dnet_graphs.calculate_graphs(
+        max_water=max_water,
         check_angle=True,
         selection="protein or resname LYR or resname HSE",
         additional_donors=["NH"],
@@ -23,31 +23,38 @@ def MD_conserved_graph(psf, dcds, name, target_folder):
         residuewise=True,
         wrap_dcd=True,
     )
-    c_dcd.plot_graphs(
+    dnet_graphs.plot_graphs(
         label_nodes=True,
-        xlabel="PCA projected membrane plane",
+        xlabel="PCA projected membrane plane (Å)",
         ylabel="Membrane normal (Å)",
-        occupancy=OCCUPANCY,
+        occupancy=occupancy,
         color_data=True,
         node_color_selection="protein or resname LYR or resname HSE",
         node_color_map="coolwarm_r",
         res_id_label_shift=19,
     )
-    # c_dcd.plot_graphs(label_nodes=True, xlabel='PCA projected membrane plane', ylabel='Membrane normal ($\AA$)')
 
 
 def main():
     parser = argparse.ArgumentParser(
         description="Process pKa from molecular dynamics trajectories."
     )
-    parser.add_argument("psf", help="Path to the PSF file")
+    parser.add_argument("--psf", help="Path to the PSF file")
     parser.add_argument(
-        "dcd",
+        "--dcd",
         nargs="+",
         help="Path to the DCD files. The path can contain regex to select multiple files by a name pattern.",
     )
     parser.add_argument(
-        "workfolder",
+        "--workfolder",
+    )
+
+    parser.add_argument(
+        "--max_water",
+    )
+
+    parser.add_argument(
+        "--occupancy",
     )
 
     args = parser.parse_args()
@@ -60,7 +67,15 @@ def main():
         dcd_files += glob.glob(dcd_file)
     dcd_files.sort()
 
-    MD_conserved_graph(args.psf, dcd_files, base_name, args.workfolder)
+    MD_conserved_graph(
+        args.psf,
+        dcd_files,
+        base_name,
+        args.workfolder,
+        int(args.max_water),
+        float(args.occupancy),
+        int(args.res_id_label_shift),
+    )
 
 
 if __name__ == "__main__":

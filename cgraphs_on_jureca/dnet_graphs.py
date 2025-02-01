@@ -9,7 +9,7 @@ from pathlib import Path
 import os
 
 
-class ProteinGraphAnalyser:
+class DNetGraphs:
     def __init__(
         self,
         target_folder,
