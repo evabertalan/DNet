@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 
 class DNetDist:
-    def __init__(self, psf, dcd, output_folder, step_size=1):
+    def __init__(self, psf, dcd, output_folder, wrap_dcd=True):
 
         _, ext = os.path.splitext(psf)
         if ext != ".psf":
@@ -21,15 +21,16 @@ class DNetDist:
 
         self.psf = psf
         self.dcd = dcd
-        self.step_size = step_size
         self.u = mda.Universe(self.psf, self.dcd)
-        self.u.trajectory.add_transformations(wrap(self.u.atoms))
+
+        if wrap_dcd:
+            self.u.trajectory.add_transformations(wrap(self.u.atoms))
 
         base = os.path.basename(psf)
         self.base_name, ext = os.path.splitext(base)
         self.output_folder = output_folder
 
-    def _read_cgraphs_edges(self, cgraphs_input):
+    def _parse_cgraphs_edges(self, cgraphs_input):
         if os.path.exists(cgraphs_input):
             with open(cgraphs_input) as f:
                 for line in f.readlines():
@@ -40,21 +41,34 @@ class DNetDist:
         else:
             raise FileNotFoundError(f"The {cgraphs_input} file does not exist.")
 
-    def _read_cgraphs_nodes(self, cgraphs_input):
+    def _parse_cgraphs_nodes(self, cgraphs_input):
         try:
             with open(cgraphs_input) as f:
                 for line in f.readlines():
                     if line.startswith("List of nodes:"):
                         nodes = ast.literal_eval(line.split(": ")[-1])
             return nodes
-        except:
+        except (FileNotFoundError, ValueError, SyntaxError) as e:
+            print(f"Error reading cgraphs file: {e}")
             return None
 
-    def calculate_distances(self, cgraphs_input):
-        self.edges = self._read_cgraphs_edges(cgraphs_input)
-        self.nodes = self._read_cgraphs_nodes(cgraphs_input)
+    def calculate_distances(
+        self,
+        cgraphs_input,
+        max_water_distance=3.5,
+        step_size=1,
+        start=None,
+        stop=None,
+        selection="",
+    ):
+        self.step_size = step_size
 
-        threshold_distance = 3.5
+        self.edges = self._parse_cgraphs_edges(cgraphs_input)
+        self.nodes = self._parse_cgraphs_nodes(cgraphs_input)
+
+        if selection:
+            self.u.select_atoms(selection)
+
         bonding_groups = (
             "OH2",
             "OW",
@@ -131,8 +145,9 @@ class DNetDist:
         self.water_around_group_over_time = []
         self.water_around_total_res_over_time = []
         self.frames = []
-        # add option to only read every 10th frame
-        for ts in self.u.trajectory[:: self.step_size]:
+
+        # for ts in self.u.trajectory[:: self.step_size]:
+        for ts in self.u.trajectory[slice(start, stop, self.step_size)]:
             self.frames.append(ts.frame)
 
             water_around_group = []
@@ -140,7 +155,7 @@ class DNetDist:
             for res in n:
                 group_w = (
                     distance_array(res.positions, waters.positions, box=box)
-                    < threshold_distance
+                    < max_water_distance
                 ).sum()
                 water_around_group.append(group_w)
 
@@ -148,7 +163,7 @@ class DNetDist:
                 water_around_total_res.append(
                     len(
                         self.u.select_atoms(
-                            f"({water_definition}) and (around {threshold_distance} {all_res_groups})"
+                            f"({water_definition}) and (around {max_water_distance} {all_res_groups})"
                         )
                     )
                 )
@@ -217,42 +232,60 @@ class DNetDist:
         fig.savefig("./dist_time_series_per_res.png")
 
 
-# def process_input():
-# cgraphs_input
-
-#         if cgraphs_input:
-#             if not cgraphs_input.endswith('_info.txt'):
-#                 raise ValueError(f'The --cgraphs_input path has to point to the _info.txt output file of cgrpahs.')
-#             else:
-#                 residue_selection_string = self._read_cgraphs_input(cgraphs_input)
-#                 self._u = self._u.select_atoms(residue_selection_string)
-
-
 def main():
     parser = argparse.ArgumentParser(
-        description="Calculate distances from molecular dynamics trajectories."
+        description="Analyze distances of H-bond graph edges and water molecules around graph nodes calculated with C-Graphs from molecular dynamics trajectories."
     )
-    parser.add_argument("psf", help="Path to the PSF file")
+    parser.add_argument(
+        "psf",
+        help="Path to the PSF file (Protein Structure File) required to load the molecular system.",
+    )
     parser.add_argument(
         "dcd",
         nargs="+",
-        help="Path to the DCD files. The path can contain regex to select multiple files by a name pattern.",
+        help="Path(s) to the DCD trajectory file(s). You can use wildcard patterns (e.g., '*.dcd') to select multiple files.",
     )
     parser.add_argument(
-        "--cgraphs_input",
-        help="Path to an _info.txt cgraphs file, which will be read as input for the distance calculation.",
+        "cgraphs_input",
+        help="Path to the _info.txt C-Grpahs file containing graph edges and nodes for distance calculations.",
     )
-    parser.add_argument("--output_folder", help="Path to the output file for pKa data")
-    # parser.add_argument('--step', help='Extend text, add argument properly to calculate_distances')
-    # add selection input
     parser.add_argument(
-        "--selection",
-        default="protein",
-        help="Atom selection for pKa calculation in MD Analysis syntax.",
+        "--output_folder",
+        help="Path to the folder where output files (CSV and plots) will be saved.",
     )
 
-    # clarify the relationship in the code: which is selected first C-Graphs or selection? --> if someone is using cgraphs input, all thos residues will be selected and these nodes can be further restricted with the --selection argument.
-    # if only --selection is given, those are the selected residues
+    parser.add_argument(
+        "--selection",
+        help="MDAnalysis selection string to restrict distance calculations to a subset of atoms from the cgraphs input.",
+    )
+
+    parser.add_argument(
+        "--start",
+        type=int,
+        help="Starting frame index for trajectory analysis. If not provided, starts from the first frame.",
+    )
+    parser.add_argument(
+        "--stop",
+        type=int,
+        help="Stopping frame index for trajectory analysis. If not provided, processes until the last frame.",
+    )
+    parser.add_argument(
+        "--step",
+        type=int,
+        help="Step size for iterating through the trajectory frames. For example, '--step 10' "
+        "processes every 10th frame to reduce computation time.",
+    )
+
+    parser.add_argument(
+        "--max_water_distance",
+        default=3.5,
+        help="Maximum distance (in Å) within which water molecules are considered for analysis. Default is 3.5 Å.",
+    )
+
+    parser.add_argument(
+        "--wrap_dcd",
+        help="Apply wrapping transformations to keep molecules within the simulation box. Default is True",
+    )
 
     args = parser.parse_args()
 
@@ -260,9 +293,27 @@ def main():
     for dcd_file in args.dcd:
         dcd_files += glob.glob(dcd_file)
     dcd_files.sort()
+    if not dcd_files:
+        raise FileNotFoundError("No valid DCD files found.")
 
-    dist_traj = DNetDist(args.psf, dcd_files, args.output_folder, step_size=10)
-    dist_traj.calculate_distances(args.cgraphs_input)
+    output_folder = (
+        args.output_folder if args.output_folder else os.path.dirname(args.psf)
+    )
+    os.makedirs(output_folder, exist_ok=True)
+
+    if args.wrap_dcd:
+        wrap_dcd = args.wrap_dcd.lower() == "true"
+    else:
+        wrap_dcd = True
+    dist_traj = DNetDist(args.psf, dcd_files, output_folder, wrap_dcd=wrap_dcd)
+    dist_traj.calculate_distances(
+        cgraphs_input=args.cgraphs_input,
+        max_water_distance=float(args.max_water_distance),
+        step_size=args.step,
+        start=args.start,
+        stop=args.stop,
+        selection=args.selection,
+    )
     dist_traj.write_results_to_df()
     # dist_traj.plot_results()
 
