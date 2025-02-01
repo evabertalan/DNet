@@ -36,10 +36,13 @@ class DNetPKa:
         self.pkas = pd.DataFrame()
 
         if cgraphs_input:
+            if not os.path.exists(cgraphs_input):
+                raise FileNotFoundError(f"File {cgraphs_input} does not exist.")
             if not cgraphs_input.endswith("_info.txt"):
                 raise ValueError(
-                    f"The --cgraphs_input path has to point to the _info.txt output file of cgrpahs."
+                    "Expected as --cgraphs_input the path to '_info.txt' file from cgraphs."
                 )
+
             else:
                 residue_selection_string = self._read_cgraphs_input(cgraphs_input)
                 self._u = self._u.select_atoms(residue_selection_string)
@@ -187,15 +190,11 @@ class DNetPKa:
         prot = self._u.select_atoms(self.selection)
         for res in prot.residues:
             res_id = res.resid
-            # fix this part for general usage
             res_name = res.resname if res.resname != "HIS" else "HSE"
             seg_id = res.segid
             res_name_map.update({f"{res_id}": {"res_name": res_name, "seg_id": seg_id}})
 
         with open(write_to_file, "w") as f:
-            # for res_id, avg_pka in zip(stats.columns, stats.iloc[1]):  # write avg pKa for C-Graphs coloring
-            # line = ' '.join([res_name_map[str(res_id)]['res_name'], str(res_id), res_name_map[str(res_id)]['seg_id'], str(round(avg_pka, 3))])
-
             for res_id, most_pka in zip(
                 stats.columns, stats.iloc[-1]
             ):  # write most frequent pKa value for C-Graphs coloring
@@ -262,33 +261,57 @@ class DNetPKa:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Process pKa from molecular dynamics trajectories."
+        description="Analyze and compute pKa values from molecular dynamics (MD) trajectories."
     )
-    parser.add_argument("psf", help="Path to the PSF file")
+    parser.add_argument(
+        "psf",
+        help="Path to the Protein Structure File (PSF). This file defines the molecular topology of the system.",
+    )
     parser.add_argument(
         "dcd",
         nargs="+",
-        help="Path to the DCD files. The path can contain regex to select multiple files by a name pattern.",
+        help="Path(s) to the trajectory DCD files. You can provide multiple DCD files separated by spaces "
+        "or use a wildcard pattern (e.g., 'traj_*.dcd'). These files contain the molecular dynamics trajectory data.",
     )
     parser.add_argument(
         "--selection",
         default="protein",
-        help="Atom selection for pKa calculation in MD Analysis syntax.",
+        help="Atom selection for pKa calculation using MDAnalysis syntax. Default is 'protein'. "
+        "You can use selections like 'resname ASP or resname GLU' to focus on specific residues.",
     )
-    parser.add_argument("--start", type=int, help="Starting frame index")
-    parser.add_argument("--stop", type=int, help="Stopping frame index")
-    parser.add_argument("--step", type=int, help="Step between frames")
-    parser.add_argument("--output_folder", help="Path to the output file for pKa data")
     parser.add_argument(
-        "--plot", action="store_true", help="Plot time_series and statistic"
+        "--start",
+        type=int,
+        help="Starting frame index for trajectory analysis. If not provided, starts from the first frame.",
+    )
+    parser.add_argument(
+        "--stop",
+        type=int,
+        help="Stopping frame index for trajectory analysis. If not provided, processes until the last frame.",
+    )
+    parser.add_argument(
+        "--step",
+        type=int,
+        help="Step size for iterating through the trajectory frames. For example, '--step 10' "
+        "processes every 10th frame to reduce computation time.",
+    )
+    parser.add_argument(
+        "--output_folder",
+        help="Directory where output files (pKa data, statistics, and plots) will be saved. "
+        "If not specified, defaults to the directory of the PSF file.",
+    )
+    parser.add_argument(
+        "--plot",
+        action="store_true",
+        help="If enabled, generates and saves pKa time series and statistical plots.",
     )
     parser.add_argument(
         "--cgraphs_input",
-        help="Path to an _info.txt cgraphs file, which will be read as input for the pKa calculation. pKa values are calculated for titrable residues of the calculated graph nodes..",
+        help="Path to a C-Graphs '_info.txt' file containing precomputed residue connectivity information. "
+        "If provided, pKa values will be computed only for residues found in this file, "
+        "which can be further restricted using the '--selection' argument.",
     )
 
-    # clarify the relationship in the code: which is selected first C-Graphs or selection? --> if someone is using cgraphs input, all thos residues will be selected and these nodes can be further restricted with the --selection argumetn.
-    # if only --selection is given, those are the selected residues
     args = parser.parse_args()
     base = os.path.basename(args.psf)
     base_name, ext = os.path.splitext(base)
@@ -296,36 +319,36 @@ def main():
     output_folder = (
         args.output_folder if args.output_folder else os.path.dirname(args.psf)
     )
-    # check if output folder exists, then creati t
+    os.makedirs(output_folder, exist_ok=True)
 
     dcd_files = []
     for dcd_file in args.dcd:
         dcd_files += glob.glob(dcd_file)
     dcd_files.sort()
 
-    pka_traj = DNetPKa(args.psf, dcd_files, args.cgraphs_input)
-    pka_traj.compute_pka_for_traj(args.selection, args.start, args.stop, args.step)
+    dnet_pKa = DNetPKa(args.psf, dcd_files, args.cgraphs_input)
+    dnet_pKa.compute_pka_for_traj(args.selection, args.start, args.stop, args.step)
 
     pka_frame_filename = os.path.join(output_folder, f"pkas_for_frames_{base_name}.csv")
-    pka_traj.get_pka_for_frame(write_to_file=pka_frame_filename)
+    dnet_pKa.get_pka_for_frame(write_to_file=pka_frame_filename)
 
     stats_filename = os.path.join(output_folder, f"pkas_stats_{base_name}.csv")
-    pka_traj.get_pka_statistic(write_to_file=stats_filename)
+    dnet_pKa.get_pka_statistic(write_to_file=stats_filename)
 
     external_data_file_name = os.path.join(output_folder, f"{base_name}_data.txt")
-    pka_traj.write_pka_to_external_data_file(external_data_file_name)
+    dnet_pKa.write_pka_to_external_data_file(external_data_file_name)
 
     if args.plot:
         time_series_plot_name = os.path.join(
             output_folder, f"ts_{args.selection.join('_')}_{base_name}.png"
         )
-        pka_traj.plot_pka_time_series_for_selection(
+        dnet_pKa.plot_pka_time_series_for_selection(
             selection=args.selection, write_to_file=time_series_plot_name
         )
         stats_plot_name = os.path.join(
             output_folder, f"stats_{args.selection.join('_')}_{base_name}.png"
         )
-        pka_traj.plot_pka_statistic_for_selection(
+        dnet_pKa.plot_pka_statistic_for_selection(
             selection=args.selection, write_to_file=stats_plot_name
         )
 
