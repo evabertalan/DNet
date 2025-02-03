@@ -22,10 +22,12 @@ WORKFOLDER=/Users/evabertalan/Documents/projects/cgraphs/to_organize/test_cgraph
 
 SELECTION="protein or resname LYR or resname HSE"
 ACCEPTORS="['NH']"
+PLOT_PARAMETERS="{'graph_color': '#666666', 'formats': ['png', 'eps']}"
+
 
 mkdir -p $WORKFOLDER
 
-python3 -m dnet_graphs "$PSF_FILE" $DCD_FILES --color_data --output_folder "$WORKFOLDER" --max_water "$MAX_WATER" --occupancy "$OCCUPANCY" --selection "$SELECTION" --node_color_selection "$SELECTION" --additional_donors "['NH']" --additional_acceptors "$ACCEPTORS" --res_id_label_shift 19 >> "$LOGFILE" 2>&1
+python3 -m dnet_graphs "$PSF_FILE" $DCD_FILES --plot_parameters "$PLOT_PARAMETERS" --color_data --output_folder "$WORKFOLDER" --max_water "$MAX_WATER" --occupancy "$OCCUPANCY" --selection "$SELECTION" --node_color_selection "$SELECTION" --additional_donors "['NH']" --additional_acceptors "$ACCEPTORS" --res_id_label_shift 19 >> "$LOGFILE" 2>&1
 
 
 # =====================================

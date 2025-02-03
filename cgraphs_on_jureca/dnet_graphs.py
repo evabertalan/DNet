@@ -650,13 +650,13 @@ def main():
 
     parser.add_argument(
         "--additional_donors",
-        default=[],
+        default="[]",
         help="",
     )
 
     parser.add_argument(
         "--additional_acceptors",
-        default=[],
+        default="[]",
         help="",
     )
 
@@ -708,6 +708,12 @@ def main():
         help="",
     )
 
+    parser.add_argument(
+        "--plot_parameters",
+        default="{}",
+        help=""" Only works with a syntax of: {'graph_color': '#666666', 'formats': ['png', 'eps']}" """,
+    )
+
     parser.add_argument("--include_backbone", action="store_true")
 
     args = parser.parse_args()
@@ -738,7 +744,7 @@ def main():
         psf_file=args.psf,
         dcd_files=dcd_files,
         sim_name=base_name,
-        plot_parameters={"graph_color": "#666666", "formats": ["png", "eps"]},
+        plot_parameters=ast.literal_eval(args.plot_parameters),
     )
     dnet_graphs.calculate_graphs(
         max_water=int(args.max_water),
