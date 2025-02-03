@@ -7,6 +7,9 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 from pathlib import Path
 import os
+import argparse
+import glob
+import ast
 
 
 class DNetGraphs:
@@ -71,7 +74,7 @@ class DNetGraphs:
         self,
         selection="protein",
         max_water=3,
-        exclude_backbone_backbone=True,
+        # exclude_backbone_backbone=True,
         include_backbone_sidechain=False,
         distance=3.5,
         cut_angle=60.0,
@@ -80,6 +83,8 @@ class DNetGraphs:
         additional_acceptors=[],
         calcualte_distance=True,
         step=1,
+        start=None,
+        stop=None,
         residuewise=True,
         wrap_dcd=False,
     ):
@@ -87,6 +92,11 @@ class DNetGraphs:
         self.logger.info(f"H-bond criteria cut off distance: {self.distance} A")
 
         self.include_backbone_sidechain = include_backbone_sidechain
+
+        if include_backbone_sidechain:
+            self.logger.info("Including sidechain-backbone interactions")
+            additional_donors.append("N")
+            additional_acceptors.append("O")
 
         self.selection = selection
         self.logger.info(f"Atom selection string: {self.selection}")
@@ -116,7 +126,8 @@ class DNetGraphs:
         )
 
         self.logger.info(
-            f"Loading {len(self.dcd_files)} trajectory files for {self.sim_name}"
+            f"""Loading {len(self.dcd_files)} trajectory files for {self.sim_name}.
+            From frame {1 if start is None else start} until frame {'last' if stop is None else stop} with a step size of {step}."""
         )
         self.logger.info("This step takes some time...")
         wba = mdh.WireAnalysis(
@@ -131,7 +142,11 @@ class DNetGraphs:
             distance=distance,
             cut_angle=cut_angle,
             wrap_dcd=wrap_dcd,
+            step=step,
+            start=start,
+            stop=stop,
         )
+
         wba.set_water_wires(water_in_convex_hull=max_water, max_water=max_water)
         wba.compute_average_water_per_wire()
         self.graph_coord_object.update({"wba": wba})
@@ -377,6 +392,7 @@ class DNetGraphs:
                     )
 
         if label_nodes:
+            self.logger.info(f"Shifting resid labels with {res_id_label_shift}")
             for n in graph.nodes:
                 n = _hf.get_node_name(n)
                 if n in node_pca_pos.keys():
@@ -606,3 +622,149 @@ class DNetGraphs:
             self.logger.warning(
                 f"{self.sim_name} has no {self.graph_type} graph. Linear length can not be calculated for this structure."
             )
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Process pKa from molecular dynamics trajectories."
+    )
+    parser.add_argument("psf", help="Path to the PSF file")
+    parser.add_argument(
+        "dcd",
+        nargs="+",
+        help="Path to the DCD files. The path can contain regex to select multiple files by a name pattern.",
+    )
+    parser.add_argument(
+        "--output_folder",
+    )
+
+    parser.add_argument("--max_water", default=3)
+
+    parser.add_argument("--occupancy", default=0.1)
+
+    parser.add_argument(
+        "--selection",
+        default="protein",
+        help="",
+    )
+
+    parser.add_argument(
+        "--additional_donors",
+        default=[],
+        help="",
+    )
+
+    parser.add_argument(
+        "--additional_acceptors",
+        default=[],
+        help="",
+    )
+
+    parser.add_argument(
+        "--start",
+        type=int,
+        help="Starting frame index for trajectory analysis. If not provided, starts from the first frame.",
+    )
+    parser.add_argument(
+        "--stop",
+        type=int,
+        help="Stopping frame index for trajectory analysis. If not provided, processes until the last frame.",
+    )
+    parser.add_argument(
+        "--step",
+        type=int,
+        default=1,
+        help="Step size for iterating through the trajectory frames. For example, '--step 10' "
+        "processes every 10th frame to reduce computation time.",
+    )
+
+    parser.add_argument("--residuewise", default=True, action="store_true")
+
+    parser.add_argument("--atomewise", dest="residuewise", action="store_false")
+
+    parser.add_argument(
+        "--wrap_dcd",
+        help="Apply wrapping transformations to keep molecules within the simulation box. Default is True",
+    )
+
+    parser.add_argument(
+        "--res_id_label_shift",
+        default=0,
+        type=int,
+        help="",
+    )
+
+    parser.add_argument("--color_data", action="store_true")
+
+    parser.add_argument(
+        "--node_color_selection",
+        default="protein",
+        help="",
+    )
+
+    parser.add_argument(
+        "--node_color_map",
+        default="coolwarm_r",
+        help="",
+    )
+
+    parser.add_argument("--include_backbone", action="store_true")
+
+    args = parser.parse_args()
+
+    base = os.path.basename(args.psf)
+    base_name, ext = os.path.splitext(base)
+
+    dcd_files = []
+    for dcd_file in args.dcd:
+        dcd_files += glob.glob(dcd_file)
+    dcd_files.sort()
+
+    if not dcd_files:
+        raise FileNotFoundError("No valid DCD files found.")
+
+    output_folder = (
+        args.output_folder if args.output_folder else os.path.dirname(args.psf)
+    )
+    os.makedirs(output_folder, exist_ok=True)
+
+    if args.wrap_dcd:
+        wrap_dcd = args.wrap_dcd.lower() == "true"
+    else:
+        wrap_dcd = True
+
+    dnet_graphs = DNetGraphs(
+        target_folder=output_folder,
+        psf_file=args.psf,
+        dcd_files=dcd_files,
+        sim_name=base_name,
+        plot_parameters={"graph_color": "#666666", "formats": ["png", "eps"]},
+    )
+    dnet_graphs.calculate_graphs(
+        max_water=int(args.max_water),
+        check_angle=True,
+        selection=args.selection,
+        additional_donors=ast.literal_eval(args.additional_donors),
+        additional_acceptors=ast.literal_eval(args.additional_acceptors),
+        residuewise=args.residuewise,
+        wrap_dcd=wrap_dcd,
+        step=args.step,
+        start=args.start,
+        stop=args.stop,
+        include_backbone_sidechain=args.include_backbone,
+    )
+
+    dnet_graphs.plot_graphs(
+        label_nodes=True,
+        xlabel="PCA projected membrane plane (Å)",
+        ylabel="Membrane normal (Å)",
+        occupancy=float(args.occupancy),
+        color_data=args.color_data,
+        node_color_selection=args.node_color_selection,
+        node_color_map=args.node_color_map,
+        res_id_label_shift=int(args.res_id_label_shift),
+    )
+
+
+if __name__ == "__main__":
+    main()
