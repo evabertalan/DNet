@@ -54,20 +54,20 @@ class DNetGraphs:
 
     def _add_node_positions_from_structure(self, selected_atoms, graph, residuewise):
         node_positions = {}
-        for i, resisdue in enumerate(selected_atoms):
+        for i, residue in enumerate(selected_atoms):
             chain, res_name, res_id = (
-                resisdue.segid,
-                resisdue.resname,
-                resisdue.resid,
+                residue.segid,
+                residue.resname,
+                residue.resid,
             )
             if residuewise:
                 res = f"{chain}-{res_name}-{res_id}"
             else:
-                atom_name = resisdue.name
+                atom_name = residue.name
                 res = f"{chain}-{res_name}-{res_id}-{atom_name}"
 
             if res in graph.nodes:
-                node_positions.update({res: resisdue.position})
+                node_positions.update({res: residue.position})
         return node_positions
 
     def calculate_graphs(
@@ -81,7 +81,6 @@ class DNetGraphs:
         check_angle=True,
         additional_donors=[],
         additional_acceptors=[],
-        calcualte_distance=True,
         step=1,
         start=None,
         stop=None,
@@ -304,7 +303,7 @@ class DNetGraphs:
         color_info = {}
         lab = " with labels" if label_nodes else ""
         if color_propka and color_data:
-            self.logger.info(
+            self.logger.warning(
                 f"Can not color plot by propka and external data values at the same time. Please select just one coloring option!"
             )
         else:
@@ -315,7 +314,7 @@ class DNetGraphs:
                 if propka_file.exists():
                     color_info = _hf.read_propka_file(propka_file, selected_nodes)
                 else:
-                    self.logger.info(
+                    self.logger.warning(
                         f"{self.sim_name}.propka not found. To color residues by pKa values, place the propka file in the PDB folder, next to the PDB file."
                     )
                 if len(color_info):
@@ -497,7 +496,7 @@ class DNetGraphs:
             )
         plt.close()
 
-    def get_linear_lenght(self, objects, graph):
+    def get_linear_length(self, objects, graph):
         connected_components = _hf.get_connected_components(graph)
         struct_object = (
             objects["structure"]
@@ -508,7 +507,7 @@ class DNetGraphs:
             connected_components, struct_object, option=self.type_option
         )
 
-    def plot_linear_lenghts(self, occupancy=None, label_nodes=True):
+    def plot_linear_lengths(self, occupancy=None, label_nodes=True):
         self.logger.info("Plotting linear lengths for continuous network components")
         self.logger.debug("Creating linear length plot for " + self.sim_name)
         if "graph" in self.graph_coord_object.keys():
@@ -526,7 +525,7 @@ class DNetGraphs:
                 + " linear length plot for: "
                 + self.sim_name
             )
-            connected_components_coordinates = self.get_linear_lenght(
+            connected_components_coordinates = self.get_linear_length(
                 self.graph_coord_object, graph
             )
             plot_parameters = copy.deepcopy(self.plot_parameters)
