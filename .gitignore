@@ -8,3 +8,5 @@ __pycache__/
 */*/*.log
 */current.propka_input
 */current.pka
+./*.ipynb
+run_files
