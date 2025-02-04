@@ -4,6 +4,7 @@
 source  ~/.venvs/pKa_proj_env/bin/activate
 
 LOGFILE=dnet_output.log
+echo "===============================================================" >> "$LOGFILE"
 echo "$(date '+%Y-%m-%d %H:%M:%S'): Starting DNet calculation script..." >> "$LOGFILE"
 
 # ========================================
@@ -31,8 +32,7 @@ echo "$(date '+%Y-%m-%d %H:%M:%S'): Starting DNet-pKa calculation..." >> "$LOGFI
 
 PKA_FOLDER=${OUTPUT_FOLDER}/pKa/
 mkdir -p $PKA_FOLDER
-python3 -m dnet_pka "$PSF_FILE" "$DCD_FILES" --output_folder "$PKA_FOLDER" --step 10 --selection "$SELECTION" >> "$LOGFILE" 2>&1 &
-
+python3 -m dnet_pka "$PSF_FILE" $DCD_FILES --output_folder "$PKA_FOLDER" --step 10 --selection "$SELECTION" >> "$LOGFILE" 2>&1 &
 
 # ========================================
 #STEP 1b: At the same time run atomwise DNet-Graphs calcualtion
@@ -50,6 +50,7 @@ python3 -m dnet_graphs "$PSF_FILE" $DCD_FILES --atomewise --plot_parameters "$PL
 
 wait
 echo "$(date '+%Y-%m-%d %H:%M:%S'): Finished DNet-pKa and DNet-Graohs calculation..." >> "$LOGFILE"
+echo "===============================================================" >> "$LOGFILE"
 
 # =====================================
 #STEP 2a: copy pKa data file and run DNet-Graphs residuewise by coloring nodes according to the pKa values
@@ -80,6 +81,7 @@ python3 -m dnet_dist "$PSF_FILE" $DCD_FILES "$GRAPHS_INPUT" --output_folder "$DI
 
 wait
 echo "$(date '+%Y-%m-%d %H:%M:%S'): Finished DNet-Grpahs pKa coloring and DNet-Dist calculation..." >> "$LOGFILE"
+echo "===============================================================" >> "$LOGFILE"
 # =====================================
 
 # Don't change this part

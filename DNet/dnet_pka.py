@@ -326,6 +326,9 @@ def main():
         dcd_files += glob.glob(dcd_file)
     dcd_files.sort()
 
+    if not dcd_files:
+        raise FileNotFoundError("No valid DCD files found.")
+
     dnet_pKa = DNetPKa(args.psf, dcd_files, args.cgraphs_input)
     dnet_pKa.compute_pka_for_traj(args.selection, args.start, args.stop, args.step)
 
