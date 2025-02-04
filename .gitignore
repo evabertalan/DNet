@@ -9,4 +9,5 @@ __pycache__/
 */current.propka_input
 */current.pka
 ./*.ipynb
+*.ipynb
 run_files
