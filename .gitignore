@@ -6,3 +6,5 @@ write-avg around_water_res_for_coloring.ipynb
 __pycache__/
 *.log
 */*/*.log
+*/current.propka_input
+*/current.pka
