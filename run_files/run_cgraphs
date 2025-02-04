@@ -1,0 +1,36 @@
+#!/bin/bash
+# ========================================
+
+source  ~/.venvs/pKa_proj_env/bin/activate
+
+LOGFILE=cgraphs_output.log
+echo "$(date '+%Y-%m-%d %H:%M:%S'): Starting C-Graphs calculation script..." >> "$LOGFILE"
+
+MAX_WATER=3
+OCCUPANCY=0.4
+# ========================================
+# Under this line come the parameters to run the script with
+
+#path to the psf file:
+PSF_FILE='/Users/evabertalan/Documents/projects/cgraphs/to_organize/test_cgraphs/cgraphs_test_for_script/jsr1_tests/9cis_m103a/read_protein_membrane_7_9cis_m103a_3_2x.psf'
+
+#path to the dcd files. Files can be defined individually listed after each other. Or multiple files selected using the glob wildcards.
+DCD_FILES=$(ls /Users/evabertalan/Documents/projects/cgraphs/to_organize/test_cgraphs/cgraphs_test_for_script/jsr1_tests/9cis_m103a/9cis_m103a*.dcd | grep -v 'PBC.dcd')
+
+#path to the output folder, in this folder will be the calculation results saved
+WORKFOLDER=/Users/evabertalan/Documents/projects/cgraphs/to_organize/test_cgraphs/cgraphs_test_for_script/jsr1_tests/9cis_m103a/
+
+SELECTION="protein or resname LYR or resname HSE"
+ACCEPTORS="['NH']"
+PLOT_PARAMETERS="{'graph_color': '#666666', 'formats': ['png', 'eps']}"
+
+
+mkdir -p $WORKFOLDER
+
+python3 -m dnet_graphs "$PSF_FILE" $DCD_FILES --plot_parameters "$PLOT_PARAMETERS" --color_data --output_folder "$WORKFOLDER" --max_water "$MAX_WATER" --occupancy "$OCCUPANCY" --selection "$SELECTION" --node_color_selection "$SELECTION" --additional_donors "['NH']" --additional_acceptors "$ACCEPTORS" --res_id_label_shift 19 >> "$LOGFILE" 2>&1
+
+
+# =====================================
+# Don't change this part
+echo "$(date '+%Y-%m-%d %H:%M:%S'): Finished C-Graphs calculation" >> "$LOGFILE"
+deactivate

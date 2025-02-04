@@ -21,9 +21,8 @@ DCD_FILES=$(ls /Users/evabertalan/Documents/projects/JSR1_pka_proj/scripts/examp
 OUTPUTFOLDER='/Users/evabertalan/Documents/projects/JSR1_pka_proj/scripts/example_files/test_traj/dist_output'
 CG_INPUT='/Users/evabertalan/Documents/projects/JSR1_pka_proj/scripts/example_files/test_traj/workfolder_old/3_water_wires/sim_atomwise/sim_atomwise_max_3_water_bridges_min_occupancy_0.1_water_wire_graph_info.txt'
 
-# mkdir -p $WORKFOLDER
-
-python3 -m dnet_dist "$PSF_FILE" $DCD_FILES --cgraphs_input "$CG_INPUT" --output_folder "$OUTPUTFOLDER" >> "$LOGFILE" 2>&1
+mkdir -p $OUTPUTFOLDER
+python3 -m dnet_dist "$PSF_FILE" $DCD_FILES "$CG_INPUT" --output_folder "$OUTPUTFOLDER" --start 2 --stop 15 --step 2 --max_water_distance 5 >> "$LOGFILE" 2>&1
 
 
 # =====================================
