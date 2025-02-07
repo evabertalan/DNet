@@ -156,6 +156,8 @@ class MDProfilePlotter:
         shift = 19
         num_bins = 100
 
+        substates_per_node = []
+
         for graph_node in self.graph_nodes:
             graph_node = ("-").join(graph_node.split("-")[0:3])
             total_number_of_states = 0
@@ -362,6 +364,7 @@ class MDProfilePlotter:
                 )
                 ax[x, 3].axis("off")
 
+            total_substates = 0
             for j, dist_col in enumerate(distcance_columns):
 
                 og_column_name = (
@@ -443,6 +446,16 @@ class MDProfilePlotter:
                 ax[x, 3] = self._ax_util(
                     ax[x, 3], xlabel="PMF (kcal/mol)", ylabel="Distance (Å)"
                 )
+                total_substates += num_substates
+
+            substates_per_node.append(
+                [
+                    graph_node,
+                    len(distcance_columns),
+                    total_substates,
+                    round(total_substates / len(distcance_columns), 2),
+                ]
+            )
 
             # print("total_number_of_states", total_number_of_states)
             fig.tight_layout(h_pad=4.0)
@@ -454,3 +467,19 @@ class MDProfilePlotter:
                     ),
                     format=img_format,
                 )
+
+        df = (
+            pd.DataFrame(
+                substates_per_node,
+                columns=["amino_acid", "num_Hbonds", "total_substates", "ratio"],
+            )
+            .drop_duplicates()
+            .sort_values(by="amino_acid")
+        )
+        df.to_csv(
+            Path(
+                self.path_to_save_output,
+                f"{self.sim_name}_substates_per_amino_acid.csv",
+            ),
+            index=False,
+        )
