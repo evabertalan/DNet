@@ -5,10 +5,9 @@ import numpy as np
 from scipy.signal import find_peaks
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
-from scipy.ndimage import gaussian_filter1d
 
 
-class MDProfilePlotter:
+class DNetPlot:
     def __init__(
         self,
         cgraphs_info_file,
@@ -483,3 +482,100 @@ class MDProfilePlotter:
             ),
             index=False,
         )
+
+
+def main():
+
+    parser = argparse.ArgumentParser(description="")
+    parser.add_argument(
+        "--plot_folder",
+        required=True,
+        help="",
+    )
+    parser.add_argument(
+        "--graphs_info_txt",
+        required=True,
+        help="",
+    )
+
+    parser.add_argument(
+        "--pKas_for_frame_csv",
+        required=True,
+        help="",
+    )
+
+    parser.add_argument(
+        "--pair_distances_csv",
+        required=True,
+        help="",
+    )
+
+    parser.add_argument(
+        "--water_within_csv",
+        required=True,
+        help="",
+    )
+
+    parser.add_argument(
+        "--total_water_within_csv",
+        required=True,
+        help="",
+    )
+
+    parser.add_argument(
+        "--sim_name",
+        help="",
+    )
+    parser.add_argument(
+        "--step",
+        help="",
+    )
+    parser.add_argument(
+        "--frame_to_time",
+        help="",
+    )
+    parser.add_argument(
+        "--pmf_last_nth_frames",
+        help="",
+    )
+    parser.add_argument(
+        "--plot_formats",
+        help="",
+    )
+    args = parser.parse_args()
+
+    for file in [
+        args.graphs_info_txt,
+        args.pKas_for_frame_csv,
+        args.pair_distances_csv,
+        args.water_within_csv,
+        args.total_water_within_csv,
+    ]:
+        if not file.is_file():
+            raise FileNotFoundError(
+                f"The file {file} does not exist. Please provide all required files to plot the data."
+            )
+
+    if not args.plot_folder.is_dir():
+        os.makedirs(plot_folder)
+
+    plotter = DNetPlot(
+        cgraphs_info_file=cgraphs_info_file,
+        pKa_info_file=pKa_info_file,
+        distance_csv=distance_csv,
+        water_number_csv=water_number_csv,
+        total_water_around_res_csv=total_water_around_res_csv,
+        path_to_save_output=plot_folder,
+        sim_name=display_name,
+        step=step,
+    )
+
+    plotter.create_combined_plots(
+        frame_to_time=frame_to_time,
+        end_frame_pmf=args.pmf_last_nth_frames,
+        plot_formats=["png", "svg"],
+    )
+
+
+if __name__ == "__main__":
+    main()
