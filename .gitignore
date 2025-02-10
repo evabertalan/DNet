@@ -11,3 +11,6 @@ __pycache__/
 ./*.ipynb
 *.ipynb
 run_files
+.gitignore
+.gitattributes
+.pre-commit-config.yaml
