@@ -1,34 +1,42 @@
 #!/bin/bash
 # ========================================
 # Set up environmetn and logging
-source  ~/.venvs/pKa_proj_env/bin/activate
+source ./dnet_env/bin/activate
 
-LOGFILE=dnet_output.log
+# ADD
+LOCATION_OF_LOGFILE= #Add relative path to the folder, where the logfile should be saved
+
+LOGFILE=${LOCATION_OF_LOGFILE}/dnet_output.log
 echo "===============================================================" >> "$LOGFILE"
 echo "$(date '+%Y-%m-%d %H:%M:%S'): Starting DNet calculation script..." >> "$LOGFILE"
 
 # ========================================
 # Set up constants for the calcualtion
+# IMPORTANT: Always add the paths as absolute paths!!
 
-#path to the psf file:
-PSF_FILE='/Users/evabertalan/Documents/projects/cgraphs/to_organize/test_cgraphs/cgraphs_test_for_script/jsr1_tests/9cis_m103a/read_protein_membrane_7_9cis_m103a_3_2x.psf'
+# ADD path to the psf file:
+PSF_FILE=
 
-#path to the dcd files. Files can be defined individually listed after each other. Or multiple files selected using the glob wildcards.
-DCD_FILES=$(ls /Users/evabertalan/Documents/projects/cgraphs/to_organize/test_cgraphs/cgraphs_test_for_script/jsr1_tests/9cis_m103a/9cis_m103a*.dcd | grep -v 'PBC.dcd')
+# ADD path to the dcd files. Files can be defined individually listed after each other. Or multiple files selected using the glob wildcards.
+# e.g: $(ls /Users/test/simulations/9cis_m103a/9cis_m103a*.dcd | grep -v 'PBC.dcd')
+DCD_FILES=$(ls )
 
-#path to the output folder, in this folder will be the calculation results saved
-OUTPUT_FOLDER=/Users/evabertalan/Documents/projects/cgraphs/to_organize/test_cgraphs/cgraphs_test_for_script/jsr1_tests/9cis_m103a/outputs
+# ADD path to the output folder, in this folder will be the calculation results saved
+OUTPUT_FOLDER=
 
-SELECTION="protein or resname LYR or resname HSE"
-ACCEPTORS="['NH']"
-DONORS="['NH']"
-MAX_WATER=3
-OCCUPANCY=0.1
-RESID_LABEL_SHIFT=19
+#ADD: 
+SELECTION= # e.g: "protein or resname LYR or resname HSE" on which selection the analysis has to be performed
+ACCEPTORS="[]" # e.g: "['NH']" if any
+DONORS="[]" # e.g: "['NH']" if any
+MAX_WATER=3 # Maximum number of water molecules allowed in water wire connections (default: 3).
+OCCUPANCY=0.1 # Minimum hydrogen bond occupancy required to include an edge in the graph (default: 0.1).
+RESID_LABEL_SHIFT=0 # Shift residue ID labels by a specified amount in plots (default: 0)
 
 # ========================================
+
 psf_name_no_ext=$(basename "$PSF_FILE" | cut -d. -f1)
 mkdir -p $OUTPUT_FOLDER
+cd ./DNet || exit
 
 # ========================================
 #STEP 1a: pKa calcualtion
