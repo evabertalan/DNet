@@ -5,44 +5,41 @@ import numpy as np
 from scipy.signal import find_peaks
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
+import os
 
 
 class DNetPlot:
     def __init__(
         self,
-        cgraphs_info_file,
+        graphs_info_txt,
         pKa_info_file,
         distance_csv,
         water_number_csv,
-        total_water_around_res_csv,
-        path_to_save_output,
+        total_water_within_csv,
+        plot_folder,
         sim_name,
         step=1,
     ):
-        self.path_to_save_output = path_to_save_output
+        self.plot_folder = plot_folder
         self.sim_name = sim_name
-        self.graph_nodes = self._get_H_bond_nodes(cgraphs_info_file)
+        self.graph_nodes = self._get_H_bond_nodes(graphs_info_txt)
         pKa_nodes = [("-").join(node.split("-")[0:3]) for node in self.graph_nodes]
 
         pKas = pd.read_csv(pKa_info_file, index_col="frame")
         self.pKas = pKas.loc[:, pKas.columns.isin(pKa_nodes)][::step]
-        self.pKas.to_csv(
-            Path(self.path_to_save_output, f"pKa_nodes_per_freame_{sim_name}.csv")
-        )
+        self.pKas.to_csv(Path(self.plot_folder, f"pKa_nodes_per_freame_{sim_name}.csv"))
 
         self.distances = pd.read_csv(distance_csv, index_col=0)
         self.distances.to_csv(
-            Path(self.path_to_save_output, f"edge_distances_per_freame_{sim_name}.csv")
+            Path(self.plot_folder, f"edge_distances_per_freame_{sim_name}.csv")
         )
 
         self.water_numbers = pd.read_csv(water_number_csv, index_col=0)
         self.water_numbers.to_csv(
-            Path(
-                self.path_to_save_output, f"water_aroun_atom_per_freame_{sim_name}.csv"
-            )
+            Path(self.plot_folder, f"water_aroun_atom_per_freame_{sim_name}.csv")
         )
 
-        total_water_around_res = pd.read_csv(total_water_around_res_csv, index_col=0)
+        total_water_around_res = pd.read_csv(total_water_within_csv, index_col=0)
         total_water_around_res.columns = (
             total_water_around_res.columns.str.split("-").str[:3].str.join("-")
         )
@@ -51,7 +48,7 @@ class DNetPlot:
         ]
         self.total_water_around_res.to_csv(
             Path(
-                self.path_to_save_output,
+                self.plot_folder,
                 f"total_water_around_res_per_freame_{sim_name}.csv",
             )
         )
@@ -143,7 +140,7 @@ class DNetPlot:
         return len(peaks)
 
     def create_combined_plots(
-        self, frame_to_time=100, end_frame_pmf=20000, plot_formats=["png"]
+        self, frame_to_time=100, pmf_last_nth_frames=20000, plot_formats=["png"]
     ):
 
         pKa_color = "#227351"
@@ -230,7 +227,7 @@ class DNetPlot:
                 ax[row, 1] = self._ax_util(ax[0, 1], xlabel="Frequency", ylabel="pKa")
 
                 last_x_pKa = self.pKas[
-                    self.pKas.index > max(self.pKas.index) - end_frame_pmf
+                    self.pKas.index > max(self.pKas.index) - pmf_last_nth_frames
                 ]
                 ax[row, 2].hist(
                     last_x_pKa[pKa_column],
@@ -245,7 +242,7 @@ class DNetPlot:
                 ax[row, 2].text(
                     0.95,
                     0.95,
-                    f"last {end_frame_pmf/frame_to_time:.0f} ns",
+                    f"last {pmf_last_nth_frames/frame_to_time:.0f} ns",
                     horizontalalignment="right",  # Align text to the right
                     verticalalignment="top",  # Align text to the top
                     transform=ax[0, 2].transAxes,  # Use normalized coordinates (0 to 1)
@@ -282,7 +279,7 @@ class DNetPlot:
 
             last_x_total_water = self.total_water_around_res[
                 self.total_water_around_res.index
-                > max(self.total_water_around_res.index) - end_frame_pmf
+                > max(self.total_water_around_res.index) - pmf_last_nth_frames
             ]
             ax[row, 2].hist(
                 last_x_total_water[graph_node],
@@ -299,7 +296,7 @@ class DNetPlot:
             ax[row, 2].text(
                 0.95,
                 0.95,
-                f"last {end_frame_pmf/frame_to_time:.0f} ns",
+                f"last {pmf_last_nth_frames/frame_to_time:.0f} ns",
                 horizontalalignment="right",  # Align text to the right
                 verticalalignment="top",  # Align text to the top
                 transform=ax[1, 2].transAxes,  # Use normalized coordinates (0 to 1)
@@ -338,7 +335,7 @@ class DNetPlot:
 
                 last_x_water = self.water_numbers[
                     self.water_numbers.index
-                    > max(self.water_numbers.index) - end_frame_pmf
+                    > max(self.water_numbers.index) - pmf_last_nth_frames
                 ]
                 ax[x, 2].hist(
                     last_x_water[wat_col],
@@ -355,7 +352,7 @@ class DNetPlot:
                 ax[x, 2].text(
                     0.95,
                     0.95,
-                    f"last {end_frame_pmf/frame_to_time:.0f} ns",
+                    f"last {pmf_last_nth_frames/frame_to_time:.0f} ns",
                     horizontalalignment="right",
                     verticalalignment="top",
                     transform=ax[x, 2].transAxes,
@@ -399,7 +396,8 @@ class DNetPlot:
                 )
 
                 last_x_dist = self.distances[
-                    self.distances.index > max(self.distances.index) - end_frame_pmf
+                    self.distances.index
+                    > max(self.distances.index) - pmf_last_nth_frames
                 ]
 
                 num_substates = self.count_substates(
@@ -422,7 +420,7 @@ class DNetPlot:
                 ax[x, 2].text(
                     0.95,
                     0.95,
-                    f"last {end_frame_pmf/frame_to_time:.0f} ns\nPN = {num_substates}",
+                    f"last {pmf_last_nth_frames/frame_to_time:.0f} ns\nPN = {num_substates}",
                     horizontalalignment="right",
                     verticalalignment="top",
                     transform=ax[x, 2].transAxes,
@@ -436,7 +434,7 @@ class DNetPlot:
                 pmfs = pd.DataFrame(data={"distance": bin_centers, "PMF": PMF})
                 pmfs.to_csv(
                     Path(
-                        self.path_to_save_output,
+                        self.plot_folder,
                         f"PMF_{self.sim_name}_{self._shift_resid_index(dist_col.replace(' - ', '__'), shift)}.csv",
                     )
                 )
@@ -461,7 +459,7 @@ class DNetPlot:
             for img_format in plot_formats:
                 fig.savefig(
                     Path(
-                        self.path_to_save_output,
+                        self.plot_folder,
                         f"{self.sim_name}_{self._shift_resid_index(graph_node, shift)}_dist_combined.{img_format}",
                     ),
                     format=img_format,
@@ -477,7 +475,7 @@ class DNetPlot:
         )
         df.to_csv(
             Path(
-                self.path_to_save_output,
+                self.plot_folder,
                 f"{self.sim_name}_substates_per_amino_acid.csv",
             ),
             index=False,
@@ -557,22 +555,28 @@ def main():
             )
 
     if not args.plot_folder.is_dir():
-        os.makedirs(plot_folder)
+        os.makedirs(args.plot_folder)
+
+    sim_name = (
+        args.sim_name
+        if args.sim_name
+        else args.pair_distances_csv.split("_pair_distances")[0]
+    )
 
     plotter = DNetPlot(
-        cgraphs_info_file=cgraphs_info_file,
-        pKa_info_file=pKa_info_file,
-        distance_csv=distance_csv,
-        water_number_csv=water_number_csv,
-        total_water_around_res_csv=total_water_around_res_csv,
-        path_to_save_output=plot_folder,
-        sim_name=display_name,
-        step=step,
+        graphs_info_txt=args.graphs_info_txt,
+        pKas_for_frame_csv=args.pKas_for_frame_csv,
+        pair_distances_csv=args.pair_distances_csv,
+        water_within_csv=args.water_within_csv,
+        total_water_within_csv=args.total_water_within_csv,
+        plot_folder=args.plot_folder,
+        sim_name=sim_name,
+        step=args.step,
     )
 
     plotter.create_combined_plots(
-        frame_to_time=frame_to_time,
-        end_frame_pmf=args.pmf_last_nth_frames,
+        frame_to_time=args.frame_to_time,
+        pmf_last_nth_frames=args.pmf_last_nth_frames,
         plot_formats=["png", "svg"],
     )
 
