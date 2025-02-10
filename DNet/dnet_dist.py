@@ -65,6 +65,7 @@ class DNetDist:
 
         self.edges = self._parse_cgraphs_edges(cgraphs_input)
         self.nodes = self._parse_cgraphs_nodes(cgraphs_input)
+        self.max_water_distance = max_water_distance
 
         if selection:
             self.u.select_atoms(selection)
@@ -155,7 +156,7 @@ class DNetDist:
             for res in n:
                 group_w = (
                     distance_array(res.positions, waters.positions, box=box)
-                    < max_water_distance
+                    < self.max_water_distance
                 ).sum()
                 water_around_group.append(group_w)
 
@@ -163,7 +164,7 @@ class DNetDist:
                 water_around_total_res.append(
                     len(
                         self.u.select_atoms(
-                            f"({water_definition}) and (around {max_water_distance} {all_res_groups})"
+                            f"({water_definition}) and (around {self.max_water_distance} {all_res_groups})"
                         )
                     )
                 )
@@ -194,8 +195,9 @@ class DNetDist:
             columns=self.nodes,
             index=self.frames,
         )
+        dist = str(self.max_water_distance).replace(".", "_")
         self.waters_df.to_csv(
-            f"{self.output_folder}/{self.base_name}_waters_within_3_5_of_group.csv",
+            f"{self.output_folder}/{self.base_name}_waters_within_{dist}_of_group.csv",
             index=True,
         )
 
@@ -205,7 +207,7 @@ class DNetDist:
             index=self.frames,
         )
         self.total_water_df.to_csv(
-            f"{self.output_folder}/{self.base_name}_total_waters_within_3_5_of_res.csv",
+            f"{self.output_folder}/{self.base_name}_total_waters_within_{dist}_of_res.csv",
             index=True,
         )
 
