@@ -1,7 +1,3 @@
-Here’s a revised version of your README that improves clarity, corrects typos, and formats the information for better readability:
-
----
-
 # DNet (Dynamic Networks)
 
 **DNet** is a tool for performing pKa calculations, generating atomwise and residuewise graphs, computing pairwise distances, calculating water interactions, and generating plots based on the analysis.
