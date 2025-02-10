@@ -35,7 +35,3 @@
 
 To be added:  
 Detailed user manual for each module and instructions on creating custom `run_dnet` files.
-
----
-
-This format should help users follow along with setting up and running the tool. It includes clean formatting, consistent terminology, and clear instructions for customization.
