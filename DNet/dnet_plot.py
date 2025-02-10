@@ -1,4 +1,5 @@
 import ast
+import argparse
 from pathlib import Path
 import pandas as pd
 import numpy as np
@@ -12,9 +13,9 @@ class DNetPlot:
     def __init__(
         self,
         graphs_info_txt,
-        pKa_info_file,
-        distance_csv,
-        water_number_csv,
+        pKas_for_frame_csv,
+        pair_distances_csv,
+        water_within_csv,
         total_water_within_csv,
         plot_folder,
         sim_name,
@@ -25,16 +26,16 @@ class DNetPlot:
         self.graph_nodes = self._get_H_bond_nodes(graphs_info_txt)
         pKa_nodes = [("-").join(node.split("-")[0:3]) for node in self.graph_nodes]
 
-        pKas = pd.read_csv(pKa_info_file, index_col="frame")
+        pKas = pd.read_csv(pKas_for_frame_csv, index_col="frame")
         self.pKas = pKas.loc[:, pKas.columns.isin(pKa_nodes)][::step]
         self.pKas.to_csv(Path(self.plot_folder, f"pKa_nodes_per_freame_{sim_name}.csv"))
 
-        self.distances = pd.read_csv(distance_csv, index_col=0)
+        self.distances = pd.read_csv(pair_distances_csv, index_col=0)
         self.distances.to_csv(
             Path(self.plot_folder, f"edge_distances_per_freame_{sim_name}.csv")
         )
 
-        self.water_numbers = pd.read_csv(water_number_csv, index_col=0)
+        self.water_numbers = pd.read_csv(water_within_csv, index_col=0)
         self.water_numbers.to_csv(
             Path(self.plot_folder, f"water_aroun_atom_per_freame_{sim_name}.csv")
         )
@@ -140,7 +141,11 @@ class DNetPlot:
         return len(peaks)
 
     def create_combined_plots(
-        self, frame_to_time=100, pmf_last_nth_frames=20000, plot_formats=["png"]
+        self,
+        frame_to_time=100,
+        pmf_last_nth_frames=20000,
+        plot_formats=["png"],
+        res_id_label_shift=0,
     ):
 
         pKa_color = "#227351"
@@ -149,7 +154,6 @@ class DNetPlot:
         dist_color = "#335080"
         text_fs = 32
 
-        shift = 19
         num_bins = 100
 
         substates_per_node = []
@@ -210,7 +214,7 @@ class DNetPlot:
                 )
                 ax[row, 0] = self._ax_util(
                     ax[0, 0],
-                    title=self._shift_resid_index(pKa_column, shift),
+                    title=self._shift_resid_index(pKa_column, res_id_label_shift),
                     xlabel="Time (ns)",
                     ylabel="pKa",
                 )
@@ -258,7 +262,7 @@ class DNetPlot:
             )
             ax[row, 0] = self._ax_util(
                 ax[row, 0],
-                title=self._shift_resid_index(graph_node, shift),
+                title=self._shift_resid_index(graph_node, res_id_label_shift),
                 xlabel="Time (ns)",
                 ylabel="#waters",
                 only_integers=True,
@@ -314,7 +318,7 @@ class DNetPlot:
                 )
                 ax[x, 0] = self._ax_util(
                     ax[x, 0],
-                    title=f"# of waters within 3.5 Å of {self._shift_resid_index(wat_col, shift)}",
+                    title=f"# of waters within 3.5 Å of {self._shift_resid_index(wat_col, res_id_label_shift)}",
                     xlabel="Time (ns)",
                     ylabel="#waters",
                     only_integers=True,
@@ -377,7 +381,7 @@ class DNetPlot:
                 )
                 ax[x, 0] = self._ax_util(
                     ax[x, 0],
-                    title=self._shift_resid_index(dist_col, shift),
+                    title=self._shift_resid_index(dist_col, res_id_label_shift),
                     xlabel="Time (ns)",
                     ylabel="Distance (Å)",
                 )
@@ -435,7 +439,7 @@ class DNetPlot:
                 pmfs.to_csv(
                     Path(
                         self.plot_folder,
-                        f"PMF_{self.sim_name}_{self._shift_resid_index(dist_col.replace(' - ', '__'), shift)}.csv",
+                        f"PMF_{self.sim_name}_{self._shift_resid_index(dist_col.replace(' - ', '__'), res_id_label_shift)}.csv",
                     )
                 )
 
@@ -460,10 +464,11 @@ class DNetPlot:
                 fig.savefig(
                     Path(
                         self.plot_folder,
-                        f"{self.sim_name}_{self._shift_resid_index(graph_node, shift)}_dist_combined.{img_format}",
+                        f"{self.sim_name}_{self._shift_resid_index(graph_node, res_id_label_shift)}_dist_combined.{img_format}",
                     ),
                     format=img_format,
                 )
+            plt.close()
 
         df = (
             pd.DataFrame(
@@ -526,19 +531,33 @@ def main():
     )
     parser.add_argument(
         "--step",
+        default=1,
         help="",
+        type=int,
     )
     parser.add_argument(
         "--frame_to_time",
         help="",
+        default=100,
+        type=int,
     )
     parser.add_argument(
         "--pmf_last_nth_frames",
         help="",
+        default=20000,
+        type=int,
     )
     parser.add_argument(
         "--plot_formats",
         help="",
+        default="['png']",
+    )
+
+    parser.add_argument(
+        "--res_id_label_shift",
+        default=0,
+        help="",
+        type=int,
     )
     args = parser.parse_args()
 
@@ -549,19 +568,18 @@ def main():
         args.water_within_csv,
         args.total_water_within_csv,
     ]:
-        if not file.is_file():
+        if not os.path.isfile(file):
             raise FileNotFoundError(
                 f"The file {file} does not exist. Please provide all required files to plot the data."
             )
 
-    if not args.plot_folder.is_dir():
+    if not os.path.isdir(args.plot_folder):
         os.makedirs(args.plot_folder)
 
-    sim_name = (
-        args.sim_name
-        if args.sim_name
-        else args.pair_distances_csv.split("_pair_distances")[0]
-    )
+    base = os.path.basename(args.pair_distances_csv)
+    base_name, ext = os.path.splitext(base)
+
+    sim_name = args.sim_name if args.sim_name else base_name.split("_pair_distances")[0]
 
     plotter = DNetPlot(
         graphs_info_txt=args.graphs_info_txt,
@@ -577,7 +595,8 @@ def main():
     plotter.create_combined_plots(
         frame_to_time=args.frame_to_time,
         pmf_last_nth_frames=args.pmf_last_nth_frames,
-        plot_formats=["png", "svg"],
+        plot_formats=ast.literal_eval(args.plot_formats),
+        res_id_label_shift=args.res_id_label_shift,
     )
 
 
