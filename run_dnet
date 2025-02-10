@@ -1,5 +1,16 @@
 #!/bin/bash
 # ========================================
+# If the code is running on a cluster where 
+if command -v module &>/dev/null; then
+    echo "Module system detected. Loading Python..."
+    module load Python
+else
+    echo ""
+fi
+#ADD if any other modules needs to be added, eg:
+# module load Python
+# module load GCCcore/.13.3.0
+
 # Set up environmetn and logging
 source ./dnet_env/bin/activate
 
