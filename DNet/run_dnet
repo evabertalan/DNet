@@ -13,18 +13,22 @@ echo "$(date '+%Y-%m-%d %H:%M:%S'): Starting DNet calculation script..." >> "$LO
 #path to the psf file:
 PSF_FILE='/Users/evabertalan/Documents/projects/cgraphs/to_organize/test_cgraphs/cgraphs_test_for_script/jsr1_tests/9cis_m103a/read_protein_membrane_7_9cis_m103a_3_2x.psf'
 
-psf_name_no_ext=$(basename "$PSF_FILE" | cut -d. -f1)
-
 #path to the dcd files. Files can be defined individually listed after each other. Or multiple files selected using the glob wildcards.
 DCD_FILES=$(ls /Users/evabertalan/Documents/projects/cgraphs/to_organize/test_cgraphs/cgraphs_test_for_script/jsr1_tests/9cis_m103a/9cis_m103a*.dcd | grep -v 'PBC.dcd')
 
 #path to the output folder, in this folder will be the calculation results saved
 OUTPUT_FOLDER=/Users/evabertalan/Documents/projects/cgraphs/to_organize/test_cgraphs/cgraphs_test_for_script/jsr1_tests/9cis_m103a/outputs
-mkdir -p $OUTPUT_FOLDER
 
 SELECTION="protein or resname LYR or resname HSE"
 ACCEPTORS="['NH']"
 DONORS="['NH']"
+MAX_WATER=3
+OCCUPANCY=0.1
+RESID_LABEL_SHIFT=19
+
+# ========================================
+psf_name_no_ext=$(basename "$PSF_FILE" | cut -d. -f1)
+mkdir -p $OUTPUT_FOLDER
 
 # ========================================
 #STEP 1a: pKa calcualtion
@@ -38,15 +42,13 @@ python3 -m dnet_pka "$PSF_FILE" $DCD_FILES --output_folder "$PKA_FOLDER" --step 
 #STEP 1b: At the same time run atomwise DNet-Graphs calcualtion
 echo "$(date '+%Y-%m-%d %H:%M:%S'): Starting DNet-Graphs atomwise calculation..." >> "$LOGFILE"
 
-MAX_WATER=3
-OCCUPANCY=0.1
 
 PLOT_PARAMETERS="{'formats': ['png', 'eps']}"
 
 ATOMWISE_FOLDER=${OUTPUT_FOLDER}/atomwise_graphs/
 mkdir -p $ATOMWISE_FOLDER
 
-python3 -m dnet_graphs "$PSF_FILE" $DCD_FILES --atomewise --plot_parameters "$PLOT_PARAMETERS"  --output_folder "$ATOMWISE_FOLDER" --max_water "$MAX_WATER" --occupancy "$OCCUPANCY" --selection "$SELECTION" --additional_donors "$DONORS" --additional_acceptors "$ACCEPTORS" --res_id_label_shift 19 >> "$LOGFILE" 2>&1 &
+python3 -m dnet_graphs "$PSF_FILE" $DCD_FILES --atomewise --plot_parameters "$PLOT_PARAMETERS"  --output_folder "$ATOMWISE_FOLDER" --max_water "$MAX_WATER" --occupancy "$OCCUPANCY" --selection "$SELECTION" --additional_donors "$DONORS" --additional_acceptors "$ACCEPTORS" --res_id_label_shift "$RESID_LABEL_SHIFT" >> "$LOGFILE" 2>&1 &
 
 wait
 echo "$(date '+%Y-%m-%d %H:%M:%S'): Finished DNet-pKa and DNet-Graohs calculation..." >> "$LOGFILE"
@@ -56,8 +58,6 @@ echo "===============================================================" >> "$LOGF
 #STEP 2a: copy pKa data file and run DNet-Graphs residuewise by coloring nodes according to the pKa values
 echo "$(date '+%Y-%m-%d %H:%M:%S'): Starting DNet-Graphs residuwise pKa coloring calculation..." >> "$LOGFILE"
 
-MAX_WATER=3
-OCCUPANCY=0.1
 
 PLOT_PARAMETERS="{'graph_color': '#666666', 'formats': ['png', 'eps']}"
 
@@ -66,7 +66,7 @@ mkdir -p $RESIDUEWISE_FOLDER
 
 cp $PKA_FOLDER/${psf_name_no_ext}_data.txt $RESIDUEWISE_FOLDER
 
-python3 -m dnet_graphs "$PSF_FILE" $DCD_FILES --color_data --residuewise --plot_parameters "$PLOT_PARAMETERS"  --output_folder "$RESIDUEWISE_FOLDER" --max_water "$MAX_WATER" --occupancy "$OCCUPANCY" --selection "$SELECTION" --additional_donors "$DONORS" --additional_acceptors "$ACCEPTORS" --res_id_label_shift 19 --node_color_selection "$SELECTION">> "$LOGFILE" 2>&1 &
+python3 -m dnet_graphs "$PSF_FILE" $DCD_FILES --color_data --residuewise --plot_parameters "$PLOT_PARAMETERS"  --output_folder "$RESIDUEWISE_FOLDER" --max_water "$MAX_WATER" --occupancy "$OCCUPANCY" --selection "$SELECTION" --additional_donors "$DONORS" --additional_acceptors "$ACCEPTORS" --res_id_label_shift "$RESID_LABEL_SHIFT" --node_color_selection "$SELECTION" >> "$LOGFILE" 2>&1 &
 
 # =====================================
 #STEP 2b copy atomwise graphs output file and run distance calculation script
@@ -74,15 +74,29 @@ python3 -m dnet_graphs "$PSF_FILE" $DCD_FILES --color_data --residuewise --plot_
 DISTANCE_FOLDER=$OUTPUT_FOLDER/distances/
 mkdir -p $DISTANCE_FOLDER
 
+MAX_WATER_DISTANCE=3.5
+
 GRAPHS_INPUT=${ATOMWISE_FOLDER}/workfolder/${MAX_WATER}_water_wires/${psf_name_no_ext}/${psf_name_no_ext}_max_${MAX_WATER}_water_bridges_min_occupancy_${OCCUPANCY}_water_wire_graph_info.txt
 
-python3 -m dnet_dist "$PSF_FILE" $DCD_FILES "$GRAPHS_INPUT" --output_folder "$DISTANCE_FOLDER" >> "$LOGFILE" 2>&1 &
-
+python3 -m dnet_dist "$PSF_FILE" $DCD_FILES "$GRAPHS_INPUT" --output_folder "$DISTANCE_FOLDER" --max_water_distance "$MAX_WATER_DISTANCE" >> "$LOGFILE" 2>&1 &
 
 wait
 echo "$(date '+%Y-%m-%d %H:%M:%S'): Finished DNet-Grpahs pKa coloring and DNet-Dist calculation..." >> "$LOGFILE"
 echo "===============================================================" >> "$LOGFILE"
 # =====================================
+echo "$(date '+%Y-%m-%d %H:%M:%S'): Starting DNet-Plot ..." >> "$LOGFILE"
+
+#path to the output file of the atomwise DNet-Graph calcualtion
+GRAPHS_INFO_TXT=${ATOMWISE_FOLDER}/workfolder/${MAX_WATER}_water_wires/${psf_name_no_ext}/${psf_name_no_ext}_max_${MAX_WATER}_water_bridges_min_occupancy_${OCCUPANCY}_water_wire_graph_info.txt
+PKAS_FOR_FRAME_CSV=${PKA_FOLDER}/pkas_for_frames_${psf_name_no_ext}.csv
+PAIR_DISTANCES_CSV=${DISTANCE_FOLDER}/${psf_name_no_ext}_pair_distances.csv
+WATER_WITHIN_CSV=${DISTANCE_FOLDER}/${psf_name_no_ext}_waters_within_${MAX_WATER_DISTANCE//./_}_of_group.csv
+TOTAL_WATER_WITHIN_CSV=${DISTANCE_FOLDER}/${psf_name_no_ext}_total_waters_within_${MAX_WATER_DISTANCE//./_}_of_res.csv
+PLOT_FOLDER=${OUTPUT_FOLDER}/plots/
+
+mkdir -p $PLOT_FOLDER
+
+python3 -m dnet_plot --plot_folder "$PLOT_FOLDER" --graphs_info_txt "$GRAPHS_INFO_TXT" --pKas_for_frame_csv "$PKAS_FOR_FRAME_CSV" --pair_distances_csv "$PAIR_DISTANCES_CSV" --water_within_csv "$WATER_WITHIN_CSV" --total_water_within_csv "$TOTAL_WATER_WITHIN_CSV" --res_id_label_shift "$RESID_LABEL_SHIFT" >> "$LOGFILE" 2>&1
 
 # Don't change this part
 echo "$(date '+%Y-%m-%d %H:%M:%S'): Finished DNet calculation" >> "$LOGFILE"
