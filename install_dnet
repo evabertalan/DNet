@@ -1,0 +1,5 @@
+#!/bin/bash
+
+python -m venv ./dnet_env
+source ./dnet_env/bin/activate
+pip install -r requirements.txt
