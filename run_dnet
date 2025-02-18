@@ -97,7 +97,7 @@ MAX_WATER_DISTANCE=3.5
 
 GRAPHS_INPUT=${ATOMWISE_FOLDER}/workfolder/${MAX_WATER}_water_wires/${psf_name_no_ext}/${psf_name_no_ext}_max_${MAX_WATER}_water_bridges_min_occupancy_${OCCUPANCY}_water_wire_graph_info.txt
 
-python3 -m dnet_dist "$PSF_FILE" $DCD_FILES "$GRAPHS_INPUT" --output_folder "$DISTANCE_FOLDER" --max_water_distance "$MAX_WATER_DISTANCE" >> "$LOGFILE" 2>&1 &
+python3 -m dnet_dist "$PSF_FILE" $DCD_FILES "$GRAPHS_INPUT" --output_folder "$DISTANCE_FOLDER" --max_water_distance "$MAX_WATER_DISTANCE" --step 10 >> "$LOGFILE" 2>&1 &
 
 wait
 echo "$(date '+%Y-%m-%d %H:%M:%S'): Finished DNet-Grpahs pKa coloring and DNet-Dist calculation..." >> "$LOGFILE"
