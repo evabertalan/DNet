@@ -11,7 +11,7 @@ fi
 # module load Python
 # module load GCCcore/.13.3.0
 
-# Set up environmetn and logging
+# Set up environment and logging
 source ./dnet_env/bin/activate
 
 # ADD
@@ -22,7 +22,7 @@ echo "===============================================================" >> "$LOGF
 echo "$(date '+%Y-%m-%d %H:%M:%S'): Starting DNet calculation script..." >> "$LOGFILE"
 
 # ========================================
-# Set up constants for the calcualtion
+# Set up constants for the calculation
 # IMPORTANT: Always add the paths as absolute paths!!
 
 # ADD path to the psf file:
@@ -50,7 +50,7 @@ mkdir -p $OUTPUT_FOLDER
 cd ./DNet || exit
 
 # ========================================
-#STEP 1a: pKa calcualtion
+#STEP 1a: pKa calculation
 echo "$(date '+%Y-%m-%d %H:%M:%S'): Starting DNet-pKa calculation..." >> "$LOGFILE"
 
 PKA_FOLDER=${OUTPUT_FOLDER}/pKa/
@@ -58,7 +58,7 @@ mkdir -p $PKA_FOLDER
 python3 -m dnet_pka "$PSF_FILE" $DCD_FILES --output_folder "$PKA_FOLDER" --step "$STEP" --selection "$SELECTION" >> "$LOGFILE" 2>&1 &
 
 # ========================================
-#STEP 1b: At the same time run atomwise DNet-Graphs calcualtion
+#STEP 1b: At the same time run atomwise DNet-Graphs calculation
 echo "$(date '+%Y-%m-%d %H:%M:%S'): Starting DNet-Graphs atomwise calculation..." >> "$LOGFILE"
 
 
@@ -70,7 +70,7 @@ mkdir -p $ATOMWISE_FOLDER
 python3 -m dnet_graphs "$PSF_FILE" $DCD_FILES --atomewise --plot_parameters "$PLOT_PARAMETERS"  --output_folder "$ATOMWISE_FOLDER" --max_water "$MAX_WATER" --occupancy "$OCCUPANCY" --selection "$SELECTION" --additional_donors "$DONORS" --additional_acceptors "$ACCEPTORS" --res_id_label_shift "$RESID_LABEL_SHIFT" >> "$LOGFILE" 2>&1 &
 
 wait
-echo "$(date '+%Y-%m-%d %H:%M:%S'): Finished DNet-pKa and DNet-Graohs calculation..." >> "$LOGFILE"
+echo "$(date '+%Y-%m-%d %H:%M:%S'): Finished DNet-pKa and DNet-Graphs calculation..." >> "$LOGFILE"
 echo "===============================================================" >> "$LOGFILE"
 
 # =====================================
@@ -89,6 +89,8 @@ python3 -m dnet_graphs "$PSF_FILE" $DCD_FILES --color_data --residuewise --plot_
 
 # =====================================
 #STEP 2b copy atomwise graphs output file and run distance calculation script
+echo "$(date '+%Y-%m-%d %H:%M:%S'): Starting DNet-Dist calculation..." >> "$LOGFILE"
+
 
 DISTANCE_FOLDER=$OUTPUT_FOLDER/distances/
 mkdir -p $DISTANCE_FOLDER
@@ -105,7 +107,7 @@ echo "===============================================================" >> "$LOGF
 # =====================================
 echo "$(date '+%Y-%m-%d %H:%M:%S'): Starting DNet-Plot ..." >> "$LOGFILE"
 
-#path to the output file of the atomwise DNet-Graph calcualtion
+#path to the output file of the atomwise DNet-Graph calculation
 GRAPHS_INFO_TXT=${ATOMWISE_FOLDER}/workfolder/${MAX_WATER}_water_wires/${psf_name_no_ext}/${psf_name_no_ext}_max_${MAX_WATER}_water_bridges_min_occupancy_${OCCUPANCY}_water_wire_graph_info.txt
 PKAS_FOR_FRAME_CSV=${PKA_FOLDER}/pkas_for_frames_${psf_name_no_ext}.csv
 PAIR_DISTANCES_CSV=${DISTANCE_FOLDER}/${psf_name_no_ext}_pair_distances.csv
