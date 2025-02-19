@@ -42,7 +42,7 @@ DONORS="[]" # e.g: "['NH']" if any
 MAX_WATER=3 # Maximum number of water molecules allowed in water wire connections (default: 3).
 OCCUPANCY=0.1 # Minimum hydrogen bond occupancy required to include an edge in the graph (default: 0.1).
 RESID_LABEL_SHIFT=0 # Shift residue ID labels by a specified amount in plots (default: 0)
-
+STEP=10 #in case of large trajectories it is recommended to only read every 10th frame for the pKa and distance calculation 
 # ========================================
 
 psf_name_no_ext=$(basename "$PSF_FILE" | cut -d. -f1)
@@ -55,7 +55,7 @@ echo "$(date '+%Y-%m-%d %H:%M:%S'): Starting DNet-pKa calculation..." >> "$LOGFI
 
 PKA_FOLDER=${OUTPUT_FOLDER}/pKa/
 mkdir -p $PKA_FOLDER
-python3 -m dnet_pka "$PSF_FILE" $DCD_FILES --output_folder "$PKA_FOLDER" --step 10 --selection "$SELECTION" >> "$LOGFILE" 2>&1 &
+python3 -m dnet_pka "$PSF_FILE" $DCD_FILES --output_folder "$PKA_FOLDER" --step "$STEP" --selection "$SELECTION" >> "$LOGFILE" 2>&1 &
 
 # ========================================
 #STEP 1b: At the same time run atomwise DNet-Graphs calcualtion
@@ -97,7 +97,7 @@ MAX_WATER_DISTANCE=3.5
 
 GRAPHS_INPUT=${ATOMWISE_FOLDER}/workfolder/${MAX_WATER}_water_wires/${psf_name_no_ext}/${psf_name_no_ext}_max_${MAX_WATER}_water_bridges_min_occupancy_${OCCUPANCY}_water_wire_graph_info.txt
 
-python3 -m dnet_dist "$PSF_FILE" $DCD_FILES "$GRAPHS_INPUT" --output_folder "$DISTANCE_FOLDER" --max_water_distance "$MAX_WATER_DISTANCE" --step 10 >> "$LOGFILE" 2>&1 &
+python3 -m dnet_dist "$PSF_FILE" $DCD_FILES "$GRAPHS_INPUT" --output_folder "$DISTANCE_FOLDER" --max_water_distance "$MAX_WATER_DISTANCE" --step "$STEP" >> "$LOGFILE" 2>&1 &
 
 wait
 echo "$(date '+%Y-%m-%d %H:%M:%S'): Finished DNet-Grpahs pKa coloring and DNet-Dist calculation..." >> "$LOGFILE"
