@@ -2,7 +2,9 @@
 
 **DNet** is a tool for performing pKa calculations, generating atomwise and residuewise graphs, computing pairwise distances, calculating water interactions, and generating plots based on the analysis.
 
-EXAMPLE final output from dummy data
+The final output of the tool is a summary figure for each H-bonding amino acid from the simulation, created with the [DNet-Plot module](#iv-dnet-plot)
+
+![#dnet-plot-main-result](https://github.com/user-attachments/assets/db809cd9-f2d6-4ae8-8d12-70f52f12891c)
 
 ## How to Set Up
 
@@ -11,14 +13,14 @@ EXAMPLE final output from dummy data
 
 2. **Install Required Packages**  
    The repository includes a `requirements.txt` file and an `install_dnet` script to install all necessary dependencies with the required versions.  
-   To install the dependencies, execute the following command in your terminal:
+   To install the dependencies, execute the following command in the terminal:
    ```bash
    ./install_dnet
    ```
 
 ## Basic Setup to Run Code from the Command Line
-The easiest way to run the tool is to customize the `run_dnet` included in the repo.
-Running this script performs the complete calculation. The parts marked with #ADD has to be customized in the file, such as the the paths to the PSF and DCD files.
+The easiest way to run the tool is to customize the [run_dnet](https://github.com/evabertalan/DNet/blob/main/run_dnet) script, which is included in this repo.
+Running this script performs the complete calculation. The parts marked with `#ADD` has to be customized in the file, such as the the paths to the PSF and DCD files.
 For a more customized set up and to understand all the possible input parameters please look at the advanced usage.
 
    - **LOCATION_OF_LOGFILE**: Path to the folder where the logfile should be saved. Example: `LOCATION_OF_LOGFILE='/path/to/logfile'`
@@ -37,9 +39,9 @@ For a more customized set up and to understand all the possible input parameters
 
 ## Advanced Usage
 
-Detailed description for each of the modules.
 Each module (dnet_pKa, dnet_graphs, dnet_dist, dnet_plot) supports the built in help function: `python3 -m dnet_dist --help` which will output the list of all supported arguments for the module.
 
+---
 
 ### I. DNet-pKa
 The dnet_pKa module is to analyze and compute pKa values from molecular dynamics (MD) trajectories. It utilizes [MDAnalysis](https://www.mdanalysis.org/) to process Protein Structure Files (PSF) and trajectory files (DCD), applying pKa calculations through the [PropkaTraj](https://github.com/Becksteinlab/propkatraj). 
