@@ -132,6 +132,9 @@ class DNetPKa:
             most_common_values[column] = most_common_bin.mid
 
         stats.loc["most_frequent_value"] = most_common_values
+        residues = [self._u.select_atoms(f"resid {col}").residues[0] for col in stats]
+        col_names = [f"{res.segid}-{res.resname}-{res.resid}" for res in residues]
+        stats.columns = col_names
 
         if write_to_file:
             stats.to_csv(write_to_file)
@@ -195,14 +198,15 @@ class DNetPKa:
             res_name_map.update({f"{res_id}": {"res_name": res_name, "seg_id": seg_id}})
 
         with open(write_to_file, "w") as f:
-            for res_id, most_pka in zip(
+            for res, most_pka in zip(
                 stats.columns, stats.iloc[-1]
             ):  # write most frequent pKa value for C-Graphs coloring
+                seg_id, res_name, res_id = res.split("-")
                 line = " ".join(
                     [
-                        res_name_map[str(res_id)]["res_name"],
+                        res_name,
                         str(res_id),
-                        res_name_map[str(res_id)]["seg_id"],
+                        seg_id,
                         str(round(most_pka, 3)),
                     ]
                 )
