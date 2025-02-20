@@ -15,7 +15,7 @@ with warnings.catch_warnings():
 
 
 class DNetPKa:
-    def __init__(self, psf, dcd, cgraphs_input):
+    def __init__(self, psf, dcd, graphs_input):
         """
         Initialize PkaFromTraj with a PSF and DCD file.
 
@@ -35,16 +35,16 @@ class DNetPKa:
         self._u = mda.Universe(self.psf, self.dcd)
         self.pkas = pd.DataFrame()
 
-        if cgraphs_input:
-            if not os.path.exists(cgraphs_input):
-                raise FileNotFoundError(f"File {cgraphs_input} does not exist.")
-            if not cgraphs_input.endswith("_info.txt"):
+        if graphs_input:
+            if not os.path.exists(graphs_input):
+                raise FileNotFoundError(f"File {graphs_input} does not exist.")
+            if not graphs_input.endswith("_info.txt"):
                 raise ValueError(
-                    "Expected as --cgraphs_input the path to '_info.txt' file from cgraphs."
+                    "Expected as --graphs_input the path to '_info.txt' file from C-Graphs or DNet-Graphs."
                 )
 
             else:
-                residue_selection_string = self._read_cgraphs_input(cgraphs_input)
+                residue_selection_string = self._read_graphs_input(graphs_input)
                 self._u = self._u.select_atoms(residue_selection_string)
 
     def print_selection_info(self):
@@ -231,9 +231,9 @@ class DNetPKa:
         except Exception as e:
             raise ValueError(f"Error in getting selected residues: {e}")
 
-    def _read_cgraphs_input(self, cgraphs_input):
-        if os.path.exists(cgraphs_input):
-            with open(cgraphs_input) as f:
+    def _read_graphs_input(self, graphs_input):
+        if os.path.exists(graphs_input):
+            with open(graphs_input) as f:
                 for line in f.readlines():
                     if line.startswith("List of nodes:"):
                         nodes = ast.literal_eval(line.split(": ")[-1])
@@ -246,7 +246,7 @@ class DNetPKa:
             selection_str = " or ".join(selection)
             return selection_str
         else:
-            raise FileNotFoundError(f"The {cgraphs_input} file does not exist.")
+            raise FileNotFoundError(f"The {graphs_input} file does not exist.")
 
     def _create_plot(self, title="", xlabel="", ylabel="", figsize=None):
         figsize = figsize if figsize else (12, 8)
@@ -306,7 +306,7 @@ def main():
         help="If enabled, generates and saves pKa time series and statistical plots.",
     )
     parser.add_argument(
-        "--cgraphs_input",
+        "--graphs_input",
         help="Path to a C-Graphs '_info.txt' file containing precomputed residue connectivity information. "
         "If provided, pKa values will be computed only for residues found in this file, "
         "which can be further restricted using the '--selection' argument.",
@@ -329,7 +329,7 @@ def main():
     if not dcd_files:
         raise FileNotFoundError("No valid DCD files found.")
 
-    dnet_pKa = DNetPKa(args.psf, dcd_files, args.cgraphs_input)
+    dnet_pKa = DNetPKa(args.psf, dcd_files, args.graphs_input)
     dnet_pKa.compute_pka_for_traj(args.selection, args.start, args.stop, args.step)
 
     pka_frame_filename = os.path.join(output_folder, f"pkas_for_frames_{base_name}.csv")

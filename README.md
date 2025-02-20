@@ -69,7 +69,7 @@ The dnet_pKa module is to analyze and compute pKa values from molecular dynamics
 | `--step`           | -             | Step size for iterating through the trajectory frames. E.g., `--step 10` processes every 10th frame.                                               |
 | `--output_folder`  | -             | Directory where output files (pKa data, statistics, and plots) will be saved. Defaults to the directory of the PSF file if not specified.          |
 | `--plot`           | `False`       | If enabled, generates and saves pKa time series and statistical plots.                                                                             |
-| `--cgraphs_input`  | -             | Path to a [C-Graphs](https://github.com/evabertalan/cgraphs) or DNet-Graphs `_info.txt` file with precomputed residue connectivity information. Restricts pKa computation to residues found in the file.    |
+| `--graphs_input`   | -             | Path to a [C-Graphs](https://github.com/evabertalan/cgraphs) or DNet-Graphs `_info.txt` file with precomputed residue connectivity information. Restricts pKa computation to residues found in the file.    |
 
 
 #### Execution

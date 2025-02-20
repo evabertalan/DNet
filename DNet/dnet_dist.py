@@ -30,20 +30,20 @@ class DNetDist:
         self.base_name, ext = os.path.splitext(base)
         self.output_folder = output_folder
 
-    def _parse_cgraphs_edges(self, cgraphs_input):
-        if os.path.exists(cgraphs_input):
-            with open(cgraphs_input) as f:
+    def _parse_cgraphs_edges(self, graphs_input):
+        if os.path.exists(graphs_input):
+            with open(graphs_input) as f:
                 for line in f.readlines():
                     if line.startswith("List of edges:"):
                         edges = ast.literal_eval(line.split(": ")[-1])
                 return edges
 
         else:
-            raise FileNotFoundError(f"The {cgraphs_input} file does not exist.")
+            raise FileNotFoundError(f"The {graphs_input} file does not exist.")
 
-    def _parse_cgraphs_nodes(self, cgraphs_input):
+    def _parse_cgraphs_nodes(self, graphs_input):
         try:
-            with open(cgraphs_input) as f:
+            with open(graphs_input) as f:
                 for line in f.readlines():
                     if line.startswith("List of nodes:"):
                         nodes = ast.literal_eval(line.split(": ")[-1])
@@ -54,7 +54,7 @@ class DNetDist:
 
     def calculate_distances(
         self,
-        cgraphs_input,
+        graphs_input,
         max_water_distance=3.5,
         step_size=1,
         start=None,
@@ -63,8 +63,8 @@ class DNetDist:
     ):
         self.step_size = step_size
 
-        self.edges = self._parse_cgraphs_edges(cgraphs_input)
-        self.nodes = self._parse_cgraphs_nodes(cgraphs_input)
+        self.edges = self._parse_cgraphs_edges(graphs_input)
+        self.nodes = self._parse_cgraphs_nodes(graphs_input)
         self.max_water_distance = max_water_distance
 
         if selection:
@@ -248,7 +248,7 @@ def main():
         help="Path(s) to the DCD trajectory file(s). You can use wildcard patterns (e.g., '*.dcd') to select multiple files.",
     )
     parser.add_argument(
-        "cgraphs_input",
+        "graphs_input",
         help="Path to the _info.txt C-Grpahs file containing graph edges and nodes for distance calculations.",
     )
     parser.add_argument(
@@ -309,7 +309,7 @@ def main():
         wrap_dcd = True
     dist_traj = DNetDist(args.psf, dcd_files, output_folder, wrap_dcd=wrap_dcd)
     dist_traj.calculate_distances(
-        cgraphs_input=args.cgraphs_input,
+        graphs_input=args.graphs_input,
         max_water_distance=float(args.max_water_distance),
         step_size=args.step,
         start=args.start,
