@@ -3,8 +3,8 @@
 **DNet** is a tool for performing pKa calculations, generating atomwise and residuewise graphs, computing pairwise distances, calculating water interactions, and generating plots based on the analysis.
 
 The final output of the tool is a summary figure for each H-bonding amino acid from the simulation, created with the [DNet-Plot module](#iv-dnet-plot)
-
-![#dnet-plot-main-result](https://github.com/user-attachments/assets/db809cd9-f2d6-4ae8-8d12-70f52f12891c)
+##### DNet summary plot
+![dnet-plot-main-result](https://github.com/user-attachments/assets/db809cd9-f2d6-4ae8-8d12-70f52f12891c)
 
 ## How to Set Up
 
@@ -44,7 +44,7 @@ Each module (dnet_pKa, dnet_graphs, dnet_dist, dnet_plot) supports the built in 
 ---
 
 ### I. DNet-pKa
-The dnet_pKa module is to analyze and compute pKa values from molecular dynamics (MD) trajectories. It utilizes [MDAnalysis](https://www.mdanalysis.org/) to process Protein Structure Files (PSF) and trajectory files (DCD), applying pKa calculations through the [PropkaTraj](https://github.com/Becksteinlab/propkatraj). 
+The dnet_pKa module is to analyze and compute pKa values from molecular dynamics (MD) trajectories. It utilizes [MDAnalysis](https://www.mdanalysis.org/) to process Protein Structure Files (PSF) and trajectory files (DCD), applying pKa calculations through the [PropkaTraj](https://github.com/Becksteinlab/propkatraj) library. 
 * Processes MD trajectory files (PSF and DCD) to compute pKa values.
 * Allows selection of specific residues using MDAnalysis selection syntax.
 * Computes statistical summaries of pKa values.
@@ -58,8 +58,7 @@ The dnet_pKa module is to analyze and compute pKa values from molecular dynamics
 | Argument | Description |
 |----------|-------------|
 | `psf` | Path to the Protein Structure File (PSF). This file defines the molecular topology of the system. |
-| `dcd` | Path(s) to the trajectory DCD files. You can provide multiple DCD files separated by spaces or use a wildcard pattern (e.g., 'traj_*.dcd'). These files
-                        contain the molecular dynamics trajectory data.|
+| `dcd` | Path(s) to the trajectory DCD files. You can provide multiple DCD files separated by spaces or use a wildcard pattern (e.g.`traj_*.dcd`). These files contain the molecular dynamics trajectory data.|
 
 ##### Optional arguments:
 | Argument           | Default Value | Description                                                                                                                                        |
@@ -67,10 +66,10 @@ The dnet_pKa module is to analyze and compute pKa values from molecular dynamics
 | `--selection`      | `protein`     | Atom selection for pKa calculation using MDAnalysis syntax. Default is 'protein'.                                                                  |
 | `--start`          | -             | Starting frame index for trajectory analysis. If not provided, starts from the first frame.                                                        |
 | `--stop`           | -             | Stopping frame index for trajectory analysis. If not provided, processes until the last frame.                                                     |
-| `--step`           | -             | Step size for iterating through the trajectory frames. E.g., '--step 10' processes every 10th frame.                                               |
+| `--step`           | -             | Step size for iterating through the trajectory frames. E.g., `--step 10` processes every 10th frame.                                               |
 | `--output_folder`  | -             | Directory where output files (pKa data, statistics, and plots) will be saved. Defaults to the directory of the PSF file if not specified.          |
 | `--plot`           | `False`       | If enabled, generates and saves pKa time series and statistical plots.                                                                             |
-| `--cgraphs_input`  | -             | Path to a C-Graphs '_info.txt' file with precomputed residue connectivity information. Restricts pKa computation to residues found in the file.    |
+| `--cgraphs_input`  | -             | Path to a [C-Graphs](https://github.com/evabertalan/cgraphs) or DNet-Graphs `_info.txt` file with precomputed residue connectivity information. Restricts pKa computation to residues found in the file.    |
 
 
 #### Execution
@@ -118,11 +117,11 @@ The dnet-graphs module analyzes molecular dynamics (MD) trajectories to construc
 | `--max_water`            | `3`            | Maximum number of water molecules allowed in water wire connections.                                                                                          |
 | `--occupancy`            | `0.1`          | Minimum hydrogen bond occupancy required to include an edge in the graph.                                                                                     |
 | `--selection`            | `protein`      | Atom selection string for defining the region of interest in the molecular system for graph calculation.                                                      |
-| `--additional_donors`    | `[]`           | List of additional hydrogen bond donor atoms, formatted as a Python list (e.g., "['N', 'S']").                                                                 |
-| `--additional_acceptors` | `[]`           | List of additional hydrogen bond acceptor atoms, formatted as a Python list (e.g., "['O', 'F']").                                                             |
+| `--additional_donors`    | `[]`           | List of additional hydrogen bond donor atoms, formatted as a Python list (e.g., `"['N', 'S']"`).                                                                 |
+| `--additional_acceptors` | `[]`           | List of additional hydrogen bond acceptor atoms, formatted as a Python list (e.g., `"['O', 'F']"`).                                                             |
 | `--start`                | -              | Starting frame index for trajectory analysis. If not provided, starts from the first frame.                                                                   |
 | `--stop`                 | -              | Stopping frame index for trajectory analysis. If not provided, processes until the last frame.                                                                |
-| `--step`                 | `1`            | Step size for iterating through the trajectory frames. For example, '--step 10' processes every 10th frame to reduce computation time.                        |
+| `--step`                 | `1`            | Step size for iterating through the trajectory frames. For example, `--step 10` processes every 10th frame to reduce computation time.                        |
 | `--residuewise`          | `True`         | Calculate hydrogen bonds at the residue level instead of the atomic level.                                                                                   |
 | `--atomewise`            | `False`        | Calculate hydrogen bonds at the atomic level instead of the residue level (overrides `--residuewise`).                                                       |
 | `--wrap_dcd`             | `true`         | Apply periodic boundary condition wrapping to keep molecules inside the simulation box. Use 'true' or 'false'.                                                |
@@ -169,7 +168,7 @@ The script calculates:
 |----------|-------------|
 | `psf` | Path to the **PSF (Protein Structure File)**. |
 | `dcd` | Path(s) to the **DCD (trajectory) files**. Supports wildcards (`*.dcd`). |
-| `graphs_input` | Path to the _info.txt DNet-Grpahs file containing graph edges and nodes for distance calculations. |
+| `graphs_input` | Path to the `_info.txt` DNet-Grpahs file containing graph edges and nodes for distance calculations. |
 
 
 ##### Optional arguments:
@@ -179,7 +178,7 @@ The script calculates:
 | `--selection`            | -              | MDAnalysis selection string to restrict distance calculations to a subset of atoms from the cgraphs input.                                                     |
 | `--start`                | -              | Starting frame index for trajectory analysis. If not provided, starts from the first frame.                                                                   |
 | `--stop`                 | -              | Stopping frame index for trajectory analysis. If not provided, processes until the last frame.                                                                |
-| `--step`                 | -              | Step size for iterating through the trajectory frames. For example, '--step 10' processes every 10th frame to reduce computation time.                        |
+| `--step`                 | -              | Step size for iterating through the trajectory frames. For example, `--step 10` processes every 10th frame to reduce computation time.                        |
 | `--max_water_distance`   | `3.5`          | Maximum distance (in Å) within which water molecules are considered for analysis. Default is 3.5 Å.                                                          |
 | `--wrap_dcd`             | `True`         | Apply wrapping transformations to keep molecules within the simulation box.                                                                                   |
 
@@ -203,8 +202,8 @@ python3 -m dnet_graphs '../protein1.psf' 'traj_*.dcd' '../workfolder/protein1/pr
 ---
 
 ### IV. DNet-Plot
-Dnet-plot is the module to complete the analysis, to combine and plot the results of all the previous modules. In order to run this module successfully, the calculations from all modules have to be completed.
-The main result of this module is the [example plot](#dnet-plot-main-result) displayed above. This analysis summary is generated for each H-bonding residue and plots:
+Dnet-plot is the module to complete the analysis, to combine and plot the results of all the previous modules. In order to run this module successfully, the calculations from all modules above have to be completed.
+The main result of this module is the [example plot](#dnet-summary-plot). This analysis summary is generated for each H-bonding residue and plots:
  * Time series of pKa values and their histogram in the full trajectory and in the `--pmf_last_nth_frames` trajectory segment
  * Time series of total number of water molecules within the `--max_water_distance` (by default 3.5Å) around the given residue. It's histogram in the full trajectory and in the `--pmf_last_nth_frames` trajectory segment
  * Time series of the number of water molecules within the `--max_water_distance` (by default 3.5Å) around each H-bonding atom of the given residue. It's histogram  the full trajectory and in the `--pmf_last_nth_frames` trajectory segment
@@ -239,7 +238,7 @@ python3 -m dnet_plot --plot_folder 'results/plots/' --graphs_info_txt 'results/g
 
 
 #### Output files:
-* `<sim_name>_<seg_id>-<res_name>-<res_id>_dist_combined.png` a [summary plot](#dnet-plot-main-result) for each H-bonding residue, eg: `protein1_sim_A-GLU-37_dist_combined.png`
+* `<sim_name>_<seg_id>-<res_name>-<res_id>_dist_combined.png` a [summary plot](#dnet-summary-plot) for each H-bonding residue, eg: `protein1_sim_A-GLU-37_dist_combined.png`
 * `PMF_<sim_name>_<H-bonding_atom1>__<H-bonding_atom2>.csv`: distance of the H-bond partners and the calculated PMF for each trajectory frame
 * `edge_distances_per_freame_<sim_name>.csv`: distances of each H-bonding pair for each trajectory frame
 * `pKa_nodes_per_freame_<sim_name>.csv`: pKa value of each titratable H-bonding amino acid for each trajectory frame
