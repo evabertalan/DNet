@@ -93,6 +93,7 @@ The script generates the following files in the specified --output_folder:
 
 Where `<base_name>` is the base file name of the PSF file.
 
+---
 
 ### II. DNet-Graphs
 The dnet-graphs module analyzes molecular dynamics (MD) trajectories to construct and visualize water wire networks based on hydrogen bond connectivity. It allows users to process MD simulation files, extract hydrogen bond networks, and generate graphs and plots.
@@ -151,6 +152,7 @@ The script creates a `workfolder` in the location of the `--output_folder` with 
 
 Where `<base_name>` is the base file name of the PSF file.
 
+---
 
 ### III. DNet-Dist
 The dnet-dist module analyzes the distances between hydrogen bonding atoms of the networks and water molecule distribution around the atoms in molecular dynamics (MD) simulations.
@@ -196,10 +198,17 @@ python3 -m dnet_graphs '../protein1.psf' 'traj_*.dcd' '../workfolder/protein1/pr
 `<base_name>_waters_within_3_5_of_group.csv`   Number of water molecules near each hydrogen H-bonding group.
 `<base_name>_total_waters_within_3_5_of_res.csv`  Total number of water molecules around each H-bonding residue
 
+---
+
 ### IV. DNet-Plot
+Dnet-plot is the module to complete the analysis, to combine and plot the results of all the previous modules. In order to run this module successfully, the calculations from all modules have to be completed.
+The main result of this module is the [example plot](#dnet-plot-main-result) displayed above. This analysis summary is generated for each H-bonding residue and plots:
+ * Time series of pKa values and their histogram in the full trajectory and in the `--pmf_last_nth_frames` trajectory segment
+ * Time series of total number of water molecules within the `--max_water_distance` (by default 3.5Å) around the given residue. It's histogram in the full trajectory and in the `--pmf_last_nth_frames` trajectory segment
+ * Time series of the number of water molecules within the `--max_water_distance` (by default 3.5Å) around each H-bonding atom of the given residue. It's histogram  the full trajectory and in the `--pmf_last_nth_frames` trajectory segment
+* Time series of H-bond distances between each of the H-bonding atoms of the given residue and it's H-bonding partner. Histogram of distances in the full trajectory and in the `--pmf_last_nth_frames` trajectory segment. PMF profile of the H-bond.
 
 #### Command-line Arguments
-Here is the updated markdown table with an additional column indicating whether each argument is required or optional:
 
 | Argument                | Default Value  | Required/Optional | Description                                                                                                                                                    |
 |-------------------------|----------------|--------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -217,13 +226,33 @@ Here is the updated markdown table with an additional column indicating whether 
 | `--res_id_label_shift`   | `0`            | Optional           | Shift residue ID labels by a specified amount in plots (default is 0).                                                                                        |
 
 #### Execution
+```sh
+python3 -m dnet_plot --plot_folder <plot_folder> --graphs_info_txt <graphs_info_txt>  --pKas_for_frame_csv <pKas_for_frame_csv> --pair_distances_csv <pair_distances_csv> --water_within_csv <water_within_csv> --total_water_within_csv <total_water_within_csv>
+```
+
+Example:
+```sh
+python3 -m dnet_plot --plot_folder 'results/plots/' --graphs_info_txt 'results/graphs/protein1_max_3_water_bridges_min_occupancy_0.1_water_wire_graph_info.txt'  --pKas_for_frame_csv 'results/pKa/pkas_for_frames_protein1.csv'--pair_distances_csv 'results/distances/protein1_pair_distances_.csv' --water_within_csv 'results/distances/protein1_waters_within_3_5_of_group.csv' --total_water_within_csv 'results/distances/protein1_total_waters_within_3_5_of_res.csv' --sim_name 'protein1_sim'
+```
+
 
 #### Output files:
-
+* `<sim_name>_<seg_id>-<res_name>-<res_id>_dist_combined.png` a [summary plot](#dnet-plot-main-result) for each H-bonding residue, eg: `protein1_sim_A-GLU-37_dist_combined.png`
+* `PMF_<sim_name>_<H-bonding_atom1>__<H-bonding_atom2>.csv`: distance of the H-bond partners and the calculated PMF for each trajectory frame
+* `edge_distances_per_freame_<sim_name>.csv`: distances of each H-bonding pair for each trajectory frame
+* `pKa_nodes_per_freame_<sim_name>.csv`: pKa value of each titratable H-bonding amino acid for each trajectory frame
+* `water_aroun_atom_per_freame_<sim_name>.csv`: number of water molecules within `--max_water_distance` in each frame around the H-bonding atoms
+* `total_water_around_res_per_freame_<sim_name>.csv`: total number of water molecules within `--max_water_distance` of in each H-bonding amino acid residue in each trajectory frame
+---
 
 ### Additional Notes:
+* For more context, explanation and example of usage, please read the [manuscript]()
 * This script is designed for MD simulations, particularly those involving water networks
 * For large trajectories, use a higher --step value to speed up processing
 * Use selection strings only include necessary atoms
 * Run the script on a high-performance machine for large trajectories
+
+## How to cite:
+
+...
 
