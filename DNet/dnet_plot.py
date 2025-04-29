@@ -157,6 +157,7 @@ class DNetPlot:
         num_bins = 100
 
         substates_per_node = []
+        unique_hbond_per_res = []
 
         for graph_node in self.graph_nodes:
             graph_node = ("-").join(graph_node.split("-")[0:3])
@@ -458,6 +459,16 @@ class DNetPlot:
                 ]
             )
 
+            def split_node_name(n):
+                return ("-").join(n.split("-")[:-1])
+
+            edges_per_res = [
+                f'{ split_node_name(e.split(" - ")[0])} - {split_node_name(e.split(" - ")[1])}'
+                for e in distcance_columns
+            ]
+            unique_res, count = np.unique(edges_per_res, return_counts=True)
+            unique_hbond_per_res.append([graph_node, len(unique_res)])
+
             # print("total_number_of_states", total_number_of_states)
             fig.tight_layout(h_pad=4.0)
             for img_format in plot_formats:
@@ -482,6 +493,17 @@ class DNetPlot:
             Path(
                 self.plot_folder,
                 f"{self.sim_name}_substates_per_amino_acid.csv",
+            ),
+            index=False,
+        )
+
+        pd.DataFrame(
+            unique_hbond_per_res,
+            columns=["amino_acid", "num_Hbonds_per_res"],
+        ).drop_duplicates().sort_values(by="amino_acid").to_csv(
+            Path(
+                self.plot_folder,
+                f"{self.sim_name}_Hbonds_per_amino_acid_residuewise.csv",
             ),
             index=False,
         )
