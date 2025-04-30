@@ -652,7 +652,19 @@ def main():
         "--occupancy",
         type=float,
         default=0.1,
-        help="Minimum hydrogen bond occupancy required to include an edge in the graph (default: 0.1).",
+        help="Minimum hydrogen bond occupancy required to include an edge in the graph (default: 0.1, which means 10% occupancy).",
+    )
+    parser.add_argument(
+        "--distance",
+        type=float,
+        default=3.5,
+        help="The distance criterion for the  H-bond search, measured between the heavy atoms. The default value is 3.5Å.",
+    )
+    parser.add_argument(
+        "--cut_angle",
+        type=float,
+        default=60,
+        help="Threshold value for the angle formed by the acceptor heavy atom, the H atom, and the donor heavy atom. The default value is 60°.",
     )
     parser.add_argument(
         "--selection",
@@ -787,6 +799,8 @@ def main():
         additional_donors=ast.literal_eval(args.additional_donors),
         additional_acceptors=ast.literal_eval(args.additional_acceptors),
         residuewise=args.residuewise,
+        distance=args.distance,
+        cut_angle=args.cut_angle,
         wrap_dcd=wrap_dcd,
         step=args.step,
         start=args.start,
