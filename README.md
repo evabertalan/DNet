@@ -115,22 +115,24 @@ The dnet-graphs module analyzes molecular dynamics (MD) trajectories to construc
 |-------------------------|----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `--output_folder`        | -              | Directory where output files and plots will be saved. If not provided, defaults to the location of the PSF file.                                              |
 | `--max_water`            | `3`            | Maximum number of water molecules allowed in water wire connections.                                                                                          |
+| `--distance`             | `3.5`          | The distance criterion for the  H-bond search, measured between the heavy atoms. The default value is 3.5Å.                                                   |
+| `--cut_angle`            | `60`           | Threshold value for the angle formed by the acceptor heavy atom, the H atom, and the donor heavy atom. The default value is 60°.                              |
 | `--occupancy`            | `0.1`          | Minimum hydrogen bond occupancy required to include an edge in the graph.                                                                                     |
 | `--selection`            | `protein`      | Atom selection string for defining the region of interest in the molecular system for graph calculation.                                                      |
-| `--additional_donors`    | `[]`           | List of additional hydrogen bond donor atoms, formatted as a Python list (e.g., `"['N', 'S']"`).                                                                 |
-| `--additional_acceptors` | `[]`           | List of additional hydrogen bond acceptor atoms, formatted as a Python list (e.g., `"['O', 'F']"`).                                                             |
+| `--additional_donors`    | `[]`           | List of additional hydrogen bond donor atoms, formatted as a Python list (e.g., `"['N', 'S']"`).                                                              |
+| `--additional_acceptors` | `[]`           | List of additional hydrogen bond acceptor atoms, formatted as a Python list (e.g., `"['O', 'F']"`).                                                           |
 | `--start`                | -              | Starting frame index for trajectory analysis. If not provided, starts from the first frame.                                                                   |
 | `--stop`                 | -              | Stopping frame index for trajectory analysis. If not provided, processes until the last frame.                                                                |
 | `--step`                 | `1`            | Step size for iterating through the trajectory frames. For example, `--step 10` processes every 10th frame to reduce computation time.                        |
-| `--residuewise`          | `True`         | Calculate hydrogen bonds at the residue level instead of the atomic level.                                                                                   |
-| `--atomewise`            | `False`        | Calculate hydrogen bonds at the atomic level instead of the residue level (overrides `--residuewise`).                                                       |
+| `--residuewise`          | `True`         | Calculate hydrogen bonds at the residue level instead of the atomic level.                                                                                    |
+| `--atomewise`            | `False`        | Calculate hydrogen bonds at the atomic level instead of the residue level (overrides `--residuewise`).                                                        |
 | `--wrap_dcd`             | `true`         | Apply periodic boundary condition wrapping to keep molecules inside the simulation box. Use 'true' or 'false'.                                                |
 | `--res_id_label_shift`   | `0`            | Shift residue ID labels by a specified amount in plots.                                                                                                       |
 | `--color_data`           | `False`        | Color nodes in the graph based on external data values.                                                                                                       |
 | `--node_color_selection` | `protein`      | Selection criteria for which nodes to color in the graph.                                                                                                     |
 | `--node_color_map`       | `coolwarm_r`   | Colormap used for node coloring.                                                                                                                              |
-| `--plot_parameters`      | `{}`           | Dictionary of plot parameters formatted as a string (e.g., `{'graph_color': '#666666', 'formats': ['png', 'eps']}`).                                           |
-| `--include_backbone`     | `False`        | Include interactions between backbone and sidechain atoms in the analysis.                                                                                   |
+| `--plot_parameters`      | `{}`           | Dictionary of plot parameters formatted as a string (e.g., `{'graph_color': '#666666', 'formats': ['png', 'eps']}`).                                          |
+| `--include_backbone`     | `False`        | Include interactions between backbone and sidechain atoms in the analysis.                                                                                    |
 
 
 #### Execution
