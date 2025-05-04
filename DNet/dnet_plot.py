@@ -387,6 +387,10 @@ class DNetPlot:
                     ylabel="Distance (Å)",
                 )
 
+                # in case .txt format is requested
+                # H_bond_df = pd.DataFrame(data={'time': self.distances.index / frame_to_time, 'distance': self.distances[og_column_name]})
+                # H_bond_df.to_csv(Path(self.plot_folder, f"H_bond_distance_time_series_{self.sim_name}_{self._shift_resid_index(dist_col.replace(' - ', '__'), res_id_label_shift)}.txt"), sep='\t', index=False)
+
                 ax[x, 1].hist(
                     self.distances[og_column_name],
                     bins=num_bins,
@@ -443,6 +447,13 @@ class DNetPlot:
                         f"PMF_{self.sim_name}_{self._shift_resid_index(dist_col.replace(' - ', '__'), res_id_label_shift)}.csv",
                     )
                 )
+
+                # in case .txt format is requested
+                # pmfs.to_csv(
+                #     Path(
+                #         self.plot_folder,
+                #         f"PMF_{self.sim_name}_{self._shift_resid_index(dist_col.replace(' - ', '__'), res_id_label_shift)}.txt",), sep='\t', index=False
+                # )
 
                 ax[x, 3].plot(PMF, bin_centers, color=dist_color, linewidth=2)
                 ax[x, 3] = self._ax_util(
