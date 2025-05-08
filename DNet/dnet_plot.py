@@ -27,6 +27,7 @@ class DNetPlot:
         pKa_nodes = [("-").join(node.split("-")[0:3]) for node in self.graph_nodes]
 
         pKas = pd.read_csv(pKas_for_frame_csv, index_col="frame")
+        pKas = self._handle_HSE(self.graph_nodes, pKas)
         self.pKas = pKas.loc[:, pKas.columns.isin(pKa_nodes)][::step]
         self.pKas.to_csv(Path(self.plot_folder, f"pKa_nodes_per_freame_{sim_name}.csv"))
 
@@ -53,6 +54,28 @@ class DNetPlot:
                 f"total_water_around_res_per_freame_{sim_name}.csv",
             )
         )
+
+    def _handle_HSE(self, graph_nodes, pKa_df):
+        for node in graph_nodes:
+            seg, res_name, res_id, atom = node.split("-")
+            his_col = f"{seg}-HIS-{res_id}"
+            if res_name == "HSE" and his_col in pKa_df.columns:
+                pKa_df.rename(
+                    columns={
+                        col: f"{seg}-HSE-{res_id}" if col == his_col else col
+                        for col in pKa_df.columns
+                    },
+                    inplace=True,
+                )
+            if res_name == "HSD" and his_col in pKa_df.columns:
+                pKa_df.rename(
+                    columns={
+                        col: f"{seg}-HSD-{res_id}" if col == his_col else col
+                        for col in pKa_df.columns
+                    },
+                    inplace=True,
+                )
+        return pKa_df
 
     def _get_H_bond_nodes(self, file):
         nodes = None
