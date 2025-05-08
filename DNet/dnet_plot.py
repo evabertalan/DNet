@@ -57,7 +57,8 @@ class DNetPlot:
 
     def _handle_HSE(self, graph_nodes, pKa_df):
         for node in graph_nodes:
-            seg, res_name, res_id, atom = node.split("-")
+            seg, res_name, res_id, *rest = node.split("-")
+
             his_col = f"{seg}-HIS-{res_id}"
             if res_name == "HSE" and his_col in pKa_df.columns:
                 pKa_df.rename(
