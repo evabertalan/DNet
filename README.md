@@ -127,7 +127,6 @@ The dnet-graphs module analyzes molecular dynamics (MD) trajectories to construc
 | `--residuewise`          | `True`         | Calculate hydrogen bonds at the residue level instead of the atomic level.                                                                                    |
 | `--atomewise`            | `False`        | Calculate hydrogen bonds at the atomic level instead of the residue level (overrides `--residuewise`).                                                        |
 | `--wrap_dcd`             | `true`         | Apply periodic boundary condition wrapping to keep molecules inside the simulation box. Use 'true' or 'false'.                                                |
-| `--res_id_label_shift`   | `0`            | Shift residue ID labels by a specified amount in plots.                                                                                                       |
 | `--color_data`           | `False`        | Color nodes in the graph based on external data values.                                                                                                       |
 | `--node_color_selection` | `protein`      | Selection criteria for which nodes to color in the graph.                                                                                                     |
 | `--node_color_map`       | `coolwarm_r`   | Colormap used for node coloring.                                                                                                                              |
@@ -226,7 +225,6 @@ The main result of this module is the [example plot](#dnet-summary-plot). This a
 | `--frame_to_time`        | `100`          | Optional           | Frame to time conversion factor, used for converting frame indices to time. Default is 100.                                                                  |
 | `--pmf_last_nth_frames`  | `20000`        | Optional           | The number of frames to consider for PMF calculation. Default is 20000.                                                                                      |
 | `--plot_formats`         | `['png']`      | Optional           | List of plot formats to save (default is `['png']`).                                                                                                          |
-| `--res_id_label_shift`   | `0`            | Optional           | Shift residue ID labels by a specified amount in plots (default is 0).                                                                                        |
 
 #### Execution
 ```sh
