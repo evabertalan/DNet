@@ -41,7 +41,6 @@ ACCEPTORS="[]" # e.g: "['NH']" if any
 DONORS="[]" # e.g: "['NH']" if any
 MAX_WATER=3 # Maximum number of water molecules allowed in water wire connections (default: 3).
 OCCUPANCY=0.1 # Minimum hydrogen bond occupancy required to include an edge in the graph (default: 0.1).
-RESID_LABEL_SHIFT=0 # Shift residue ID labels by a specified amount in plots (default: 0)
 STEP=10 #in case of large trajectories it is recommended to only read every 10th frame for the pKa and distance calculation 
 # ========================================
 
@@ -67,7 +66,7 @@ PLOT_PARAMETERS="{'formats': ['png', 'eps']}"
 ATOMWISE_FOLDER=${OUTPUT_FOLDER}/atomwise_graphs/
 mkdir -p $ATOMWISE_FOLDER
 
-python3 -m dnet_graphs "$PSF_FILE" $DCD_FILES --atomewise --plot_parameters "$PLOT_PARAMETERS"  --output_folder "$ATOMWISE_FOLDER" --max_water "$MAX_WATER" --occupancy "$OCCUPANCY" --selection "$SELECTION" --additional_donors "$DONORS" --additional_acceptors "$ACCEPTORS" --res_id_label_shift "$RESID_LABEL_SHIFT" >> "$LOGFILE" 2>&1 &
+python3 -m dnet_graphs "$PSF_FILE" $DCD_FILES --atomewise --plot_parameters "$PLOT_PARAMETERS"  --output_folder "$ATOMWISE_FOLDER" --max_water "$MAX_WATER" --occupancy "$OCCUPANCY" --selection "$SELECTION" --additional_donors "$DONORS" --additional_acceptors "$ACCEPTORS" >> "$LOGFILE" 2>&1 &
 
 wait
 echo "$(date '+%Y-%m-%d %H:%M:%S'): Finished DNet-pKa and DNet-Graphs calculation..." >> "$LOGFILE"
@@ -85,7 +84,7 @@ mkdir -p $RESIDUEWISE_FOLDER
 
 cp $PKA_FOLDER/${psf_name_no_ext}_data.txt $RESIDUEWISE_FOLDER
 
-python3 -m dnet_graphs "$PSF_FILE" $DCD_FILES --color_data --residuewise --plot_parameters "$PLOT_PARAMETERS"  --output_folder "$RESIDUEWISE_FOLDER" --max_water "$MAX_WATER" --occupancy "$OCCUPANCY" --selection "$SELECTION" --additional_donors "$DONORS" --additional_acceptors "$ACCEPTORS" --res_id_label_shift "$RESID_LABEL_SHIFT" --node_color_selection "$SELECTION" >> "$LOGFILE" 2>&1 &
+python3 -m dnet_graphs "$PSF_FILE" $DCD_FILES --color_data --residuewise --plot_parameters "$PLOT_PARAMETERS"  --output_folder "$RESIDUEWISE_FOLDER" --max_water "$MAX_WATER" --occupancy "$OCCUPANCY" --selection "$SELECTION" --additional_donors "$DONORS" --additional_acceptors "$ACCEPTORS" --node_color_selection "$SELECTION" >> "$LOGFILE" 2>&1 &
 
 # =====================================
 #STEP 2b copy atomwise graphs output file and run distance calculation script
@@ -117,7 +116,7 @@ PLOT_FOLDER=${OUTPUT_FOLDER}/plots/
 
 mkdir -p $PLOT_FOLDER
 
-python3 -m dnet_plot --plot_folder "$PLOT_FOLDER" --graphs_info_txt "$GRAPHS_INFO_TXT" --pKas_for_frame_csv "$PKAS_FOR_FRAME_CSV" --pair_distances_csv "$PAIR_DISTANCES_CSV" --water_within_csv "$WATER_WITHIN_CSV" --total_water_within_csv "$TOTAL_WATER_WITHIN_CSV" --res_id_label_shift "$RESID_LABEL_SHIFT" >> "$LOGFILE" 2>&1
+python3 -m dnet_plot --plot_folder "$PLOT_FOLDER" --graphs_info_txt "$GRAPHS_INFO_TXT" --pKas_for_frame_csv "$PKAS_FOR_FRAME_CSV" --pair_distances_csv "$PAIR_DISTANCES_CSV" --water_within_csv "$WATER_WITHIN_CSV" --total_water_within_csv "$TOTAL_WATER_WITHIN_CSV" >> "$LOGFILE" 2>&1
 
 # Don't change this part
 echo "$(date '+%Y-%m-%d %H:%M:%S'): Finished DNet calculation" >> "$LOGFILE"

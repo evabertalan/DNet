@@ -32,7 +32,6 @@ For a more customized set up and to understand all the possible input parameters
    - **DONORS**: Additional hydrogen bond donor atoms in Python list format. Example: `DONORS="['N', 'S']"`
    - **MAX_WATER**: Maximum number of water molecules in water wire connections. Default: `3`. Example: `MAX_WATER=3`
    - **OCCUPANCY**: Minimum hydrogen bond occupancy to include an edge in the graph. Default: `0.1`. Example: `OCCUPANCY=0.1`
-   - **RESID_LABEL_SHIFT**: Shift residue ID labels by a specified amount in plots. Default: `0`. Example: `RESID_LABEL_SHIFT=0`
    - **STEP**: Step size for iterating through the trajectory frames. In case of large trajectories it is recommended to only read every 10th frame for the pKa and distance calculation. Default: `1`. Example: `STEP=10`
 
 
