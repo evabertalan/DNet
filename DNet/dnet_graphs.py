@@ -1,3 +1,8 @@
+import warnings
+
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="MDAnalysis.*")
+
+
 import helperfunctions as _hf
 import copy
 import numpy as np
@@ -452,7 +457,7 @@ class DNetGraphs:
             Path(self.workfolder, f"{self.max_water}_water_wires", self.sim_name)
         )
 
-        waters = f"_max_{self.max_water}_water_bridges" if self.max_water > 0 else ""
+        waters = f"_max_{self.max_water}_water_bridges"
         occ = f"_min_occupancy_{occupancy}" if occupancy else ""
         for form in self.plot_parameters["formats"]:
             plt.savefig(

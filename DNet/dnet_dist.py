@@ -1,3 +1,7 @@
+import warnings
+
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="MDAnalysis.*")
+
 import os
 import ast
 import argparse

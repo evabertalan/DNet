@@ -31,6 +31,9 @@ from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import dijkstra
 from collections import OrderedDict as _odict
 from matplotlib.ticker import MaxNLocator
+import warnings
+
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="MDAnalysis.*")
 
 # import matplotlib
 # matplotlib.use('TKAgg', warn=False)
