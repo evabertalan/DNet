@@ -767,6 +767,12 @@ def main():
         help="Include interactions between backbone and sidechain atoms in the analysis.",
     )
 
+    parser.add_argument(
+        "--no_label_plots",
+        action="store_true",
+        help="Creates all the graph plots without the nodes and edges labels as well.",
+    )
+
     args = parser.parse_args()
 
     base = os.path.basename(args.psf)
@@ -823,6 +829,19 @@ def main():
         node_color_map=args.node_color_map,
         res_id_label_shift=int(args.res_id_label_shift),
     )
+
+    if args.no_label_plots:
+        dnet_graphs.plot_graphs(
+            label_nodes=False,
+            label_edges=False,
+            xlabel="PCA projected membrane plane (Å)",
+            ylabel="Membrane normal (Å)",
+            occupancy=float(args.occupancy),
+            color_data=args.color_data,
+            node_color_selection=args.node_color_selection,
+            node_color_map=args.node_color_map,
+            res_id_label_shift=int(args.res_id_label_shift),
+        )
 
 
 if __name__ == "__main__":
