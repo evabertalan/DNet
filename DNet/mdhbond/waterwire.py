@@ -358,13 +358,17 @@ class WireAnalysis(NetworkAnalysis):
                 local_water_tree = _sp.cKDTree(local_water_coordinates)
 
                 local_water_index += self._first_water_id
-                local_pairs = [
-                    (i, local_water_index[j])
-                    for i, bla in enumerate(
-                        selection_tree.query_ball_tree(local_water_tree, self.distance)
-                    )
-                    for j in bla
-                ]
+                local_pairs = _np.array(
+                    [
+                        (i, local_water_index[j])
+                        for i, bla in enumerate(
+                            selection_tree.query_ball_tree(
+                                local_water_tree, self.distance
+                            )
+                        )
+                        for j in bla
+                    ]
+                )
                 local_water_index -= self._first_water_id
 
                 try:
