@@ -6,6 +6,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning, module="MDAnalysi
 import helperfunctions as _hf
 import copy
 import numpy as np
+import pandas as pd
 import MDAnalysis as _mda
 import mdhbond as mdh
 import matplotlib.pyplot as plt
@@ -25,15 +26,17 @@ class DNetGraphs:
         dcd_files,
         sim_name=None,
         plot_parameters={},
+        dont_save_graph_objects=False,
     ):
 
         self.plot_parameters = _hf.get_plot_parameters(plot_parameters)
         self.target_folder = target_folder
         self.workfolder = _hf.create_directory(Path(target_folder, "workfolder"))
 
-        self.graph_object_folder = _hf.create_directory(
-            Path(self.workfolder, "graph_objects")
-        )
+        if not dont_save_graph_objects:
+            self.graph_object_folder = _hf.create_directory(
+                Path(self.workfolder, "graph_objects")
+            )
 
         self.helper_files_folder = _hf.create_directory(
             Path(self.workfolder, ".helper_files")
@@ -118,10 +121,6 @@ class DNetGraphs:
                 """
             )
 
-        self.water_graphs_folder = _hf.create_directory(
-            Path(self.graph_object_folder, f"{self.max_water}_water_wires")
-        )
-
         if check_angle:
             self.logger.info(f"H-bond criteria cut off angle: {cut_angle} degree")
 
@@ -163,7 +162,25 @@ class DNetGraphs:
         selected_atoms = u.select_atoms(self.selection)
         self.graph_coord_object.update({"selected_atoms": selected_atoms})
 
+        plot_folder = _hf.create_directory(
+            Path(self.workfolder, f"{self.max_water}_water_wires", self.sim_name)
+        )
+        df = pd.DataFrame.from_dict(
+            _hf.edge_info(wba, self.graph.edges), orient="index"
+        ).reset_index()
+        df.columns = ["edge", "water", "occupancy"]
+
+        waters = f"_max_{self.max_water}_water_bridges"
+        df.to_csv(
+            Path(plot_folder, f"{self.sim_name}{waters}_water_occupancy_edge_info.txt"),
+            sep="\t",
+            index=False,
+        )
+
         if not dont_save_graph_objects:
+            self.water_graphs_folder = _hf.create_directory(
+                Path(self.graph_object_folder, f"{self.max_water}_water_wires")
+            )
             wba.dump_to_file(
                 Path(
                     self.water_graphs_folder,
@@ -809,6 +826,7 @@ def main():
         dcd_files=dcd_files,
         sim_name=base_name,
         plot_parameters=ast.literal_eval(args.plot_parameters),
+        dont_save_graph_objects=args.dont_save_graph_objects,
     )
     dnet_graphs.calculate_graphs(
         max_water=int(args.max_water),
