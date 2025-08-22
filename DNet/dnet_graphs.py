@@ -91,6 +91,7 @@ class DNetGraphs:
         stop=None,
         residuewise=True,
         wrap_dcd=False,
+        dont_save_graph_objects=False,
     ):
         self.distance = distance
         self.logger.info(f"H-bond criteria cut off distance: {self.distance} A")
@@ -155,13 +156,6 @@ class DNetGraphs:
         wba.compute_average_water_per_wire()
         self.graph_coord_object.update({"wba": wba})
 
-        wba.dump_to_file(
-            Path(
-                self.water_graphs_folder,
-                f"{self.sim_name}_{self.max_water}_water_wires_graph.pickle",
-            )
-        )
-
         self.graph = wba.filtered_graph
         self.graph_coord_object.update({"graph": self.graph})
 
@@ -169,31 +163,38 @@ class DNetGraphs:
         selected_atoms = u.select_atoms(self.selection)
         self.graph_coord_object.update({"selected_atoms": selected_atoms})
 
-        _hf.pickle_write_file(
-            Path(
-                self.helper_files_folder,
-                f"{self.sim_name}_{self.max_water}_water_nx_graphs.pickle",
-            ),
-            self.graph,
-        )
+        if not dont_save_graph_objects:
+            wba.dump_to_file(
+                Path(
+                    self.water_graphs_folder,
+                    f"{self.sim_name}_{self.max_water}_water_wires_graph.pickle",
+                )
+            )
+            _hf.pickle_write_file(
+                Path(
+                    self.helper_files_folder,
+                    f"{self.sim_name}_{self.max_water}_water_nx_graphs.pickle",
+                ),
+                self.graph,
+            )
 
-        _hf.json_write_file(
-            Path(
-                self.helper_files_folder,
-                f"{self.sim_name}_{self.max_water}_water_graph_edge_info.json",
-            ),
-            _hf.edge_info(wba, self.graph.edges),
-        )
+            _hf.json_write_file(
+                Path(
+                    self.helper_files_folder,
+                    f"{self.sim_name}_{self.max_water}_water_graph_edge_info.json",
+                ),
+                _hf.edge_info(wba, self.graph.edges),
+            )
 
-        graph_coord_object_loc = Path(
-            self.helper_files_folder,
-            f"{self.sim_name}_{self.max_water}_water_wires_coord_objects.pickle",
-        )
-        _hf.pickle_write_file(
-            graph_coord_object_loc,
-            self.graph_coord_object,
-        )
-        self.logger.info(f"Graph object is saved as: {graph_coord_object_loc}")
+            graph_coord_object_loc = Path(
+                self.helper_files_folder,
+                f"{self.sim_name}_{self.max_water}_water_wires_coord_objects.pickle",
+            )
+            _hf.pickle_write_file(
+                graph_coord_object_loc,
+                self.graph_coord_object,
+            )
+            self.logger.info(f"Graph object is saved as: {graph_coord_object_loc}")
 
         self.node_positions = self._add_node_positions_from_structure(
             selected_atoms, self.graph, self.residuewise
@@ -773,6 +774,12 @@ def main():
         help="Creates all the graph plots without the nodes and edges labels as well.",
     )
 
+    parser.add_argument(
+        "--dont_save_graph_objects",
+        action="store_true",
+        help="Don't save the metadata and full graph objects of the calculations. Use this flag if there is not enough space for the calculation results or when the graph objects are not needed for further calculations or analysis.",
+    )
+
     args = parser.parse_args()
 
     base = os.path.basename(args.psf)
@@ -817,6 +824,7 @@ def main():
         start=args.start,
         stop=args.stop,
         include_backbone_sidechain=args.include_backbone,
+        dont_save_graph_objects=args.dont_save_graph_objects,
     )
 
     dnet_graphs.plot_graphs(
