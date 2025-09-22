@@ -66,6 +66,7 @@ class DNetPKa:
         """
         self.selection = selection
 
+        self._u.add_TopologyAttr("chainID")
         self._u.add_TopologyAttr("record_types")
         self._u = self._u.select_atoms(self.selection)
 
@@ -103,14 +104,7 @@ class DNetPKa:
         """
 
         if write_to_file:
-            residues = [
-                self._u.select_atoms(f"resid {col}").residues[0]
-                for col in self.pkas.columns
-            ]
-            col_names = [f"{res.segid}-{res.resname}-{res.resid}" for res in residues]
-            df = self.pkas.copy()
-            df.columns = col_names
-            df.to_csv(write_to_file)
+            self.pkas.to_csv(write_to_file)
         return self.pkas
 
     def get_pka_statistic(self, selection=None, write_to_file=None):
@@ -138,9 +132,6 @@ class DNetPKa:
             most_common_values[column] = most_common_bin.mid
 
         stats.loc["most_frequent_value"] = most_common_values
-        residues = [self._u.select_atoms(f"resid {col}").residues[0] for col in stats]
-        col_names = [f"{res.segid}-{res.resname}-{res.resid}" for res in residues]
-        stats.columns = col_names
 
         if write_to_file:
             stats.to_csv(write_to_file)

@@ -84,6 +84,16 @@ class PropkaTraj(AnalysisBase):
         else:
             self.ag = atomgroup.atoms
 
+        # MY CODE: To write index the chain ID column of the PDB file, so the calculated pKa values can be distinguished for the segments, later map back the indexes to the segment names
+        self.chainID_map = {}
+        for i in range(len(self.ag.segments)):
+            self.chainID_map[str(i)] = self.ag.segments[i].segid
+
+        for a in self.ag:
+            a.chainID = next(
+                (k for k, v in self.chainID_map.items() if v == a.segid), None
+            )
+
         # Issue #23 (keep until the PDBWriter is fixed)
         if len(self.ag.select_atoms("not protein")) > 0:
             wmsg = (
@@ -135,6 +145,11 @@ class PropkaTraj(AnalysisBase):
             self._pkas.append([g.pka_value for g in groups])
             if self._columns is None:
                 self._columns = [g.atom.resNumb for g in groups]
+                # MY CODE: map back the chainIDs to the original segment names and use as the column name of the df
+                self.df_cols = [
+                    f"{self.chainID_map[g.atom.chainID]}-{g.atom.resName}-{g.atom.resNumb}"
+                    for g in groups
+                ]
         finally:
             # deallocate stream
             pstream.close(force=True)
@@ -167,5 +182,5 @@ class PropkaTraj(AnalysisBase):
         self.results.pkas = pd.DataFrame(
             self._pkas,
             index=pd.Index(self.frames, name="frame", dtype="int64"),
-            columns=self._columns,
+            columns=self.df_cols,
         )
