@@ -159,6 +159,10 @@ class DNetGraphs:
         self.graph_coord_object.update({"graph": self.graph})
 
         u = _mda.Universe(self.psf_file, self.dcd_files)
+
+        if len([seg.segid for seg in u.segments]) > 1:
+            self.plot_parameters["show_chain_label"] = True
+
         selected_atoms = u.select_atoms(self.selection)
         self.graph_coord_object.update({"selected_atoms": selected_atoms})
 
