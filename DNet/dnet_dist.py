@@ -18,11 +18,6 @@ class DNetDist:
     def __init__(self, psf, dcd, output_folder, wrap_dcd=True):
 
         _, ext = os.path.splitext(psf)
-        if ext != ".psf":
-            raise ValueError(
-                f"The first argument has to be a PSF file. The provided file is a {ext}."
-            )
-
         self.psf = psf
         self.dcd = dcd
         self.u = mda.Universe(self.psf, self.dcd)

@@ -25,10 +25,6 @@ class DNetPKa:
         """
 
         _, ext = os.path.splitext(psf)
-        if ext != ".psf":
-            raise ValueError(
-                f"The first argument has to be a PSF file. The provided file is a {ext}."
-            )
 
         self.psf = psf
         self.dcd = dcd
