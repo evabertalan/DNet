@@ -94,9 +94,12 @@ class DNetGraphs:
         stop=None,
         residuewise=True,
         wrap_dcd=False,
+        connected_component_root=None,
+        occupancy=None,
         dont_save_graph_objects=False,
     ):
         self.distance = distance
+        self.connected_component_root = connected_component_root
         self.logger.info(f"H-bond criteria cut off distance: {self.distance} A")
 
         self.include_backbone_sidechain = include_backbone_sidechain
@@ -153,6 +156,15 @@ class DNetGraphs:
 
         wba.set_water_wires(water_in_convex_hull=max_water, max_water=max_water)
         wba.compute_average_water_per_wire()
+
+        if connected_component_root:
+            segment, res_name, res_id = _hf.get_node_name_pats(connected_component_root)
+            root = f"{segment}-{res_name}-{res_id}"
+            if occupancy:
+                wba.filter_occupancy(occupancy)
+            print(root)
+            wba.filter_connected_component(root)
+
         self.graph_coord_object.update({"wba": wba})
 
         self.graph = wba.filtered_graph
@@ -166,9 +178,20 @@ class DNetGraphs:
         selected_atoms = u.select_atoms(self.selection)
         self.graph_coord_object.update({"selected_atoms": selected_atoms})
 
-        plot_folder = _hf.create_directory(
-            Path(self.workfolder, f"{self.max_water}_water_wires", self.sim_name)
-        )
+        if self.connected_component_root:
+            plot_folder = _hf.create_directory(
+                Path(
+                    self.workfolder,
+                    f"{self.max_water}_water_wires_connected_components",
+                    self.connected_component_root,
+                    self.sim_name,
+                )
+            )
+        else:
+            plot_folder = _hf.create_directory(
+                Path(self.workfolder, f"{self.max_water}_water_wires", self.sim_name)
+            )
+
         df = pd.DataFrame.from_dict(
             _hf.edge_info(wba, self.graph.edges), orient="index"
         ).reset_index()
@@ -182,9 +205,17 @@ class DNetGraphs:
         )
 
         if not dont_save_graph_objects:
-            self.water_graphs_folder = _hf.create_directory(
-                Path(self.graph_object_folder, f"{self.max_water}_water_wires")
-            )
+            if connected_component_root:
+                self.water_graphs_folder = _hf.create_directory(
+                    Path(
+                        self.graph_object_folder,
+                        f"{self.max_water}_water_wires_connected_components",
+                    )
+                )
+            else:
+                self.water_graphs_folder = _hf.create_directory(
+                    Path(self.graph_object_folder, f"{self.max_water}_water_wires")
+                )
             wba.dump_to_file(
                 Path(
                     self.water_graphs_folder,
@@ -475,9 +506,19 @@ class DNetGraphs:
             else ""
         )
 
-        plot_folder = _hf.create_directory(
-            Path(self.workfolder, f"{self.max_water}_water_wires", self.sim_name)
-        )
+        if self.connected_component_root:
+            plot_folder = _hf.create_directory(
+                Path(
+                    self.workfolder,
+                    f"{self.max_water}_water_wires_connected_components",
+                    self.connected_component_root,
+                    self.sim_name,
+                )
+            )
+        else:
+            plot_folder = _hf.create_directory(
+                Path(self.workfolder, f"{self.max_water}_water_wires", self.sim_name)
+            )
 
         waters = f"_max_{self.max_water}_water_bridges"
         occ = f"_min_occupancy_{occupancy}" if occupancy else ""
@@ -629,9 +670,21 @@ class DNetGraphs:
                 else ""
             )
 
-            plot_folder = _hf.create_directory(
-                Path(self.workfolder, f"{self.max_water}_water_wires", {self.sim_name})
-            )
+            if self.connected_component_root:
+                plot_folder = _hf.create_directory(
+                    Path(
+                        self.workfolder,
+                        f"{self.max_water}_water_wires_connected_components",
+                        self.connected_component_root,
+                        self.sim_name,
+                    )
+                )
+            else:
+                plot_folder = _hf.create_directory(
+                    Path(
+                        self.workfolder, f"{self.max_water}_water_wires", self.sim_name
+                    )
+                )
 
             waters = (
                 f"_max_{self.max_water}_water_bridges" if self.max_water > 0 else ""
@@ -644,6 +697,7 @@ class DNetGraphs:
                     dpi=self.plot_parameters["plot_resolution"],
                 )
             plt.close()
+
         else:
             self.logger.warning(
                 f"{self.sim_name} has no {self.graph_type} graph. Linear length can not be calculated for this structure."
@@ -752,6 +806,12 @@ def main():
         default="true",
         help="Apply periodic boundary condition wrapping to keep molecules inside the simulation box. Use 'true' or 'false' (default: true).",
     )
+
+    parser.add_argument(
+        "--root",
+        type=str,
+        help="Root node for connected component search. In a form of SEGNAME-RESANEM-RESID, e.g: A-ASP-213",
+    )
     parser.add_argument(
         "--res_id_label_shift",
         default=0,
@@ -846,6 +906,8 @@ def main():
         start=args.start,
         stop=args.stop,
         include_backbone_sidechain=args.include_backbone,
+        occupancy=float(args.occupancy),
+        connected_component_root=args.root,
         dont_save_graph_objects=args.dont_save_graph_objects,
     )
 
