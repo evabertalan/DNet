@@ -206,6 +206,7 @@ class DNetGraphs:
 
         if not dont_save_graph_objects:
             if connected_component_root:
+                root = f"_{self.connected_component_root}_"
                 self.water_graphs_folder = _hf.create_directory(
                     Path(
                         self.graph_object_folder,
@@ -213,19 +214,20 @@ class DNetGraphs:
                     )
                 )
             else:
+                root = ""
                 self.water_graphs_folder = _hf.create_directory(
                     Path(self.graph_object_folder, f"{self.max_water}_water_wires")
                 )
             wba.dump_to_file(
                 Path(
                     self.water_graphs_folder,
-                    f"{self.sim_name}_{self.max_water}_water_wires_graph.pickle",
+                    f"{self.sim_name}{root}{self.max_water}_water_wires_graph.pickle",
                 )
             )
             _hf.pickle_write_file(
                 Path(
                     self.helper_files_folder,
-                    f"{self.sim_name}_{self.max_water}_water_nx_graphs.pickle",
+                    f"{self.sim_name}{root}{self.max_water}_water_nx_graphs.pickle",
                 ),
                 self.graph,
             )
@@ -233,14 +235,14 @@ class DNetGraphs:
             _hf.json_write_file(
                 Path(
                     self.helper_files_folder,
-                    f"{self.sim_name}_{self.max_water}_water_graph_edge_info.json",
+                    f"{self.sim_name}{root}{self.max_water}_water_graph_edge_info.json",
                 ),
                 _hf.edge_info(wba, self.graph.edges),
             )
 
             graph_coord_object_loc = Path(
                 self.helper_files_folder,
-                f"{self.sim_name}_{self.max_water}_water_wires_coord_objects.pickle",
+                f"{self.sim_name}{root}{self.max_water}_water_wires_coord_objects.pickle",
             )
             _hf.pickle_write_file(
                 graph_coord_object_loc,
@@ -522,11 +524,14 @@ class DNetGraphs:
 
         waters = f"_max_{self.max_water}_water_bridges"
         occ = f"_min_occupancy_{occupancy}" if occupancy else ""
+        root = (
+            f"_{self.connected_component_root}" if self.connected_component_root else ""
+        )
         for form in self.plot_parameters["formats"]:
             plt.savefig(
                 Path(
                     plot_folder,
-                    f"{self.sim_name}{waters}{occ}_graph{is_propka}{is_conservation}{is_backbone}{is_label}.{form}",
+                    f"{self.sim_name}{root}{waters}{occ}_graph{is_propka}{is_conservation}{is_backbone}{is_label}.{form}",
                 ),
                 format=form,
                 dpi=self.plot_parameters["plot_resolution"],
@@ -535,7 +540,7 @@ class DNetGraphs:
             _hf.write_text_file(
                 Path(
                     plot_folder,
-                    f"{self.sim_name}{waters}{occ}_water_wire_graph_info.txt",
+                    f"{self.sim_name}{root}{waters}{occ}_water_wire_graph_info.txt",
                 ),
                 [
                     "Water wire graph of " + self.sim_name,
@@ -690,9 +695,14 @@ class DNetGraphs:
                 f"_max_{self.max_water}_water_bridges" if self.max_water > 0 else ""
             )
             occ = f"_min_occupancy_{occupancy}" if occupancy else ""
+            root = (
+                f"_{self.connected_component_root}"
+                if self.connected_component_root
+                else ""
+            )
             for form in self.plot_parameters["formats"]:
                 plt.savefig(
-                    f"{plot_folder}{self.sim_name}{waters}{occ}_linear_length{is_backbone}{is_label}.{form}",
+                    f"{plot_folder}{self.sim_name}{root}{waters}{occ}_linear_length{is_backbone}{is_label}.{form}",
                     format=form,
                     dpi=self.plot_parameters["plot_resolution"],
                 )
