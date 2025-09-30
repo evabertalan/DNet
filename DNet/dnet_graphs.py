@@ -46,6 +46,7 @@ class DNetGraphs:
 
         self.psf_file = psf_file
         self.dcd_files = dcd_files
+        self.multi_segments = None
 
         if not sim_name:
             base = os.path.basename(psf_file)
@@ -176,6 +177,9 @@ class DNetGraphs:
 
         if len([seg.segid for seg in u.select_atoms("protein").segments]) > 1:
             self.plot_parameters["show_chain_label"] = True
+            self.multi_segments = [
+                seg.segid for seg in u.select_atoms("protein").segments
+            ]
         self.graph_coord_object.update({"selected_atoms": selected_atoms})
 
         if self.connected_component_root:
@@ -409,12 +413,17 @@ class DNetGraphs:
                         f"The content of {self.sim_name}_data.txt is invalid or no residues found in the file matching the selection for node coloring"
                     )
 
+        markers = ["o", ",", "v", "p", "D", "*", "h", "H", "X"]
         for n, values in node_pca_pos.items():
             if n in graph.nodes:
+                if self.multi_segments:
+                    marker_shape = markers[self.multi_segments.index(n.split("-")[0])]
+
                 if n.split("-")[1] in _hf.water_types:
                     ax.scatter(
                         values[0],
                         values[1],
+                        marker=marker_shape,
                         color=self.plot_parameters["water_node_color"],
                         s=self.plot_parameters["node_size"] * 0.7,
                         zorder=5,
@@ -431,6 +440,7 @@ class DNetGraphs:
                         values[0],
                         values[1],
                         color=color,
+                        marker=marker_shape,
                         s=self.plot_parameters["node_size"],
                         zorder=5,
                         edgecolors=self.plot_parameters["graph_color"],
@@ -445,6 +455,7 @@ class DNetGraphs:
                         values[0],
                         values[1],
                         color=color,
+                        marker=marker_shape,
                         s=self.plot_parameters["node_size"],
                         zorder=5,
                         edgecolors=self.plot_parameters["graph_color"],
