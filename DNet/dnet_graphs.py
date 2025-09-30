@@ -172,10 +172,10 @@ class DNetGraphs:
 
         u = _mda.Universe(self.psf_file, self.dcd_files)
 
-        if len([seg.segid for seg in u.segments]) > 1:
-            self.plot_parameters["show_chain_label"] = True
-
         selected_atoms = u.select_atoms(self.selection)
+
+        if len([seg.segid for seg in u.select_atoms("protein").segments]) > 1:
+            self.plot_parameters["show_chain_label"] = True
         self.graph_coord_object.update({"selected_atoms": selected_atoms})
 
         if self.connected_component_root:
