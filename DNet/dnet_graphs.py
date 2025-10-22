@@ -163,7 +163,6 @@ class DNetGraphs:
             root = f"{segment}-{res_name}-{res_id}"
             if occupancy:
                 wba.filter_occupancy(occupancy)
-            print(root)
             wba.filter_connected_component(root)
 
         self.graph_coord_object.update({"wba": wba})
@@ -418,6 +417,8 @@ class DNetGraphs:
             if n in graph.nodes:
                 if self.multi_segments:
                     marker_shape = markers[self.multi_segments.index(n.split("-")[0])]
+                else:
+                    marker_shape = "o"
 
                 if n.split("-")[1] in _hf.water_types:
                     ax.scatter(
