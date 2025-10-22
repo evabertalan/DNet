@@ -182,6 +182,7 @@ class DNetPlot:
 
         substates_per_node = []
         unique_hbond_per_res = []
+        substates_per_edge = []
 
         for graph_node in self.graph_nodes:
             graph_node = ("-").join(graph_node.split("-")[0:3])
@@ -436,6 +437,9 @@ class DNetPlot:
                 num_substates = self.count_substates(
                     last_x_dist[og_column_name], num_bins=num_bins
                 )
+                substates_per_edge.append(
+                    [dist_col.split(" - ")[0], dist_col.split(" - ")[1], num_substates]
+                )
                 total_number_of_states += num_substates
 
                 ax[x, 2].hist(
@@ -531,6 +535,12 @@ class DNetPlot:
             ),
             index=False,
         )
+
+        with open(
+            Path(self.plot_folder, f"{self.sim_name}_PN_per_edges.txt"), "w"
+        ) as f:
+            for row in substates_per_edge:
+                f.write(" ".join(map(str, row)) + "\n")
 
         pd.DataFrame(
             unique_hbond_per_res,
