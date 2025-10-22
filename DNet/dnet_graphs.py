@@ -11,6 +11,8 @@ import MDAnalysis as _mda
 import mdhbond as mdh
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from matplotlib.colors import LinearSegmentedColormap, Normalize
+from matplotlib.cm import ScalarMappable
 from pathlib import Path
 import os
 import argparse
@@ -294,6 +296,7 @@ class DNetGraphs:
         node_color_map="viridis",
         color_edges=False,
         res_id_label_shift=0,
+        color_edge_by_occupnacy=False,
     ):
 
         wba = self.graph_coord_object["wba"]
@@ -319,6 +322,16 @@ class DNetGraphs:
             edge_value_dict = _hf.read_edge_color_data(self.sim_name, self.psf_file)
             edge_colors_data, cmap, norm = _hf.get_color_map(edge_value_dict)
 
+        if color_edge_by_occupnacy:
+            cmap = LinearSegmentedColormap.from_list(
+                "custom_gray", ["#E5E5E5", "#424242"]
+            )
+            values = np.linspace(0.1, 1, 10)
+            norm = Normalize(vmin=min(values), vmax=max(values))
+            sm = ScalarMappable(cmap=cmap, norm=norm)
+            color_bar_label = "H-bond occupancy"
+
+        waters, occ_per_wire, _ = _hf.get_edge_params(wba, graph.edges)
         for e in graph.edges:
             e0 = _hf.get_node_name(e[0])
             e1 = _hf.get_node_name(e[1])
@@ -327,11 +340,16 @@ class DNetGraphs:
                 x = [edge_line[0][0], edge_line[1][0]]
                 y = [edge_line[0][1], edge_line[1][1]]
 
-                color = (
-                    edge_colors_data[e]
-                    if e in edge_colors_data.keys()
-                    else self.plot_parameters["graph_color"]
-                )
+                if e in edge_colors_data.keys():
+                    color = edge_colors_data[e]
+
+                elif color_edge_by_occupnacy:
+                    occ = occ_per_wire[list(graph.edges).index(e)]
+                    color = sm.to_rgba(occ)
+
+                else:
+                    color = self.plot_parameters["graph_color"]
+
                 ax.plot(
                     x,
                     y,
@@ -344,7 +362,6 @@ class DNetGraphs:
                 )
 
                 if label_edges:
-                    waters, occ_per_wire, _ = _hf.get_edge_params(wba, graph.edges)
                     ax.annotate(
                         np.round(waters[list(graph.edges).index(e)], 1),
                         (x[0] + (x[1] - x[0]) / 2, y[0] + (y[1] - y[0]) / 2),
@@ -501,12 +518,14 @@ class DNetGraphs:
                             color=self.plot_parameters["non_prot_color"],
                         )
 
-        if color_info:
+        if color_info or color_edge_by_occupnacy:
             cbar = fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax)
-            cbar.ax.tick_params(labelsize=self.plot_parameters["plot_tick_fontsize"])
+            cbar.ax.tick_params(
+                labelsize=self.plot_parameters["plot_tick_fontsize"] - 3
+            )
             cbar.set_label(
                 label=color_bar_label,
-                size=self.plot_parameters["plot_label_fontsize"],
+                size=self.plot_parameters["plot_label_fontsize"] - 3,
             )
 
         plt.tight_layout()
@@ -883,6 +902,12 @@ def main():
         help="Don't save the metadata and full graph objects of the calculations. Use this flag if there is not enough space for the calculation results or when the graph objects are not needed for further calculations or analysis.",
     )
 
+    parser.add_argument(
+        "--color_edge_by_occupnacy",
+        action="store_true",
+        help="Color graph edges according to a gray color scale matching the occupancy values.",
+    )
+
     args = parser.parse_args()
 
     base = os.path.basename(args.psf)
@@ -942,6 +967,7 @@ def main():
         node_color_selection=args.node_color_selection,
         node_color_map=args.node_color_map,
         res_id_label_shift=int(args.res_id_label_shift),
+        color_edge_by_occupnacy=args.color_edge_by_occupnacy,
     )
 
     if args.no_label_plots:
@@ -955,6 +981,7 @@ def main():
             node_color_selection=args.node_color_selection,
             node_color_map=args.node_color_map,
             res_id_label_shift=int(args.res_id_label_shift),
+            color_edge_by_occupnacy=args.color_edge_by_occupnacy,
         )
 
 
