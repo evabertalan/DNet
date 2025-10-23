@@ -11,13 +11,12 @@ import MDAnalysis as _mda
 import mdhbond as mdh
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-from matplotlib.colors import LinearSegmentedColormap, Normalize
-from matplotlib.cm import ScalarMappable
 from pathlib import Path
 import os
 import argparse
 import glob
 import ast
+import pdb
 
 
 class DNetGraphs:
@@ -294,7 +293,7 @@ class DNetGraphs:
         color_data=False,
         node_color_selection=None,
         node_color_map="viridis",
-        color_edges=False,
+        color_edges_by=None,
         res_id_label_shift=0,
         color_edge_by_occupnacy=False,
     ):
@@ -317,18 +316,18 @@ class DNetGraphs:
         node_pca_pos = self._get_node_positions()
         node_pca_pos = _hf.check_projection_sign(node_pca_pos, self.pca_positions)
 
-        edge_colors_data = {}
-        if color_edges:
-            edge_value_dict = _hf.read_edge_color_data(self.sim_name, self.psf_file)
-            edge_colors_data, cmap, norm = _hf.get_color_map(edge_value_dict)
+        edge_value_dict = {}
+        if color_edges_by:
+            edge_value_dict = _hf.read_edge_color_data(color_edges_by)
+            # edge_colors_data, cmap, norm = _hf.get_color_map(edge_value_dict)
+            cmap, norm, edge_colors = _hf.get_edge_color_map(
+                list(edge_value_dict.values())
+            )
+            color_bar_label = "Edge value"
 
         if color_edge_by_occupnacy:
-            cmap = LinearSegmentedColormap.from_list(
-                "custom_gray", ["#E5E5E5", "#424242"]
-            )
             values = np.linspace(0.1, 1, 10)
-            norm = Normalize(vmin=min(values), vmax=max(values))
-            sm = ScalarMappable(cmap=cmap, norm=norm)
+            cmap, norm, occupany_colors = _hf.get_edge_color_map(values)
             color_bar_label = "H-bond occupancy"
 
         waters, occ_per_wire, _ = _hf.get_edge_params(wba, graph.edges)
@@ -340,12 +339,13 @@ class DNetGraphs:
                 x = [edge_line[0][0], edge_line[1][0]]
                 y = [edge_line[0][1], edge_line[1][1]]
 
-                if e in edge_colors_data.keys():
-                    color = edge_colors_data[e]
+                if e in edge_value_dict.keys():
+                    val = list(edge_value_dict.values())[list(graph.edges).index(e)]
+                    color = edge_colors.to_rgba(val)
 
-                elif color_edge_by_occupnacy:
+                elif occ_per_wire:
                     occ = occ_per_wire[list(graph.edges).index(e)]
-                    color = sm.to_rgba(occ)
+                    color = occupany_colors.to_rgba(occ)
 
                 else:
                     color = self.plot_parameters["graph_color"]
@@ -518,7 +518,7 @@ class DNetGraphs:
                             color=self.plot_parameters["non_prot_color"],
                         )
 
-        if color_info or color_edge_by_occupnacy:
+        if color_info or color_edge_by_occupnacy or color_edges_by:
             cbar = fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax)
             cbar.ax.tick_params(
                 labelsize=self.plot_parameters["plot_tick_fontsize"] - 3
@@ -908,6 +908,11 @@ def main():
         help="Color graph edges according to a gray color scale matching the occupancy values.",
     )
 
+    parser.add_argument(
+        "--color_edges_by_file",
+        type=str,
+        help="Path to the .txt file, which contains values according to edges need to be colored. Each row of the .txt file needs to be: edge1 edge2 value ",
+    )
     args = parser.parse_args()
 
     base = os.path.basename(args.psf)
@@ -930,6 +935,11 @@ def main():
         wrap_dcd = args.wrap_dcd.lower() == "true"
     else:
         wrap_dcd = True
+
+    if args.color_edge_by_occupnacy and args.color_edges_by_file:
+        raise ValueError(
+            "color_edge_by_occupnacy and color_edges_by_file can't be used at the same time. Edges can be colored only by either of the values."
+        )
 
     dnet_graphs = DNetGraphs(
         target_folder=output_folder,
@@ -968,6 +978,7 @@ def main():
         node_color_map=args.node_color_map,
         res_id_label_shift=int(args.res_id_label_shift),
         color_edge_by_occupnacy=args.color_edge_by_occupnacy,
+        color_edges_by=args.color_edges_by_file,
     )
 
     if args.no_label_plots:
@@ -982,6 +993,7 @@ def main():
             node_color_map=args.node_color_map,
             res_id_label_shift=int(args.res_id_label_shift),
             color_edge_by_occupnacy=args.color_edge_by_occupnacy,
+            color_edges_by=args.color_edges_by_file,
         )
 
 

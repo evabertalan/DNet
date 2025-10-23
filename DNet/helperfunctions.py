@@ -8,9 +8,12 @@ import networkx as nx
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 from matplotlib import cm
+from matplotlib.colors import LinearSegmentedColormap, Normalize, BoundaryNorm
+from matplotlib.cm import ScalarMappable
 import matplotlib as mpl
 from pathlib import Path
-
+import ast
+import pdb
 
 warnings.filterwarnings("ignore")
 
@@ -318,21 +321,19 @@ def read_color_data_file(pdb_id, pdb_root_folder, selected_nodes):
     return color_info
 
 
-def read_edge_color_data(name, psf_file):
-    folder = os.path.join(*[os.sep] + psf_file.split(os.sep)[:-1])
-    if os.path.exists(folder):
-        edge_color_file = [
-            file for file in os.listdir(folder) if file.endswith("color_edges.txt")
-        ]
-        if len(edge_color_file):
-            edge_colorc_data = np.loadtxt(
-                os.path.join(folder, edge_color_file[0]), dtype=str
-            )
+def read_edge_color_data(color_edges_by_file):
+    if os.path.exists(color_edges_by_file):
+        edge_colorc_data = np.loadtxt(color_edges_by_file, dtype=str)
+        edge_value_dict = {
+            tuple((edge[0], edge[1])): ast.literal_eval(edge[2])
+            for edge in edge_colorc_data
+        }
+        return edge_value_dict
+    else:
+        print(
+            f"{color_edges_by_file} doesn't exists, can't color edges by the values in the file."
+        )
 
-            edge_value_dict = {
-                tuple((edge[0], edge[1])): edge[2] for edge in edge_colorc_data
-            }
-            return edge_value_dict
     return {}
 
 
@@ -409,6 +410,28 @@ def get_color_map(color_info, color_map="viridis", center=None):
         return value_colors, cmap, norm
     else:
         return {}, cmap, None
+
+
+def get_edge_color_map(values):
+    isint = all(isinstance(x, int) for x in values)
+    if isint:
+        low_color = "#C0C0C0"  # light blue
+        high_color = "#1C189C"  # dark blue
+        norm = BoundaryNorm(
+            boundaries=np.arange(min(values), max(values) + 1, 1),
+            ncolors=len(set(values)),
+        )
+        cmap = LinearSegmentedColormap.from_list(
+            "custom", [low_color, high_color], N=len(set(values))
+        )
+    else:
+        low_color = "#E5E5E5"  # light gray
+        high_color = "#424242"  # dark gray
+        norm = Normalize(vmin=min(values), vmax=max(values))
+        cmap = LinearSegmentedColormap.from_list("custom", [low_color, high_color])
+
+    sm = ScalarMappable(cmap=cmap, norm=norm)
+    return cmap, norm, sm
 
 
 def get_water_coordinates(protein_chain, res_index):
