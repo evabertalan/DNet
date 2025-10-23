@@ -158,13 +158,10 @@ class DNetGraphs:
 
         wba.set_water_wires(water_in_convex_hull=max_water, max_water=max_water)
         wba.compute_average_water_per_wire()
-
         if connected_component_root:
-            segment, res_name, res_id = _hf.get_node_name_pats(connected_component_root)
-            root = f"{segment}-{res_name}-{res_id}"
             if occupancy:
                 wba.filter_occupancy(occupancy)
-            wba.filter_connected_component(root)
+            wba.filter_connected_component(connected_component_root)
 
         self.graph_coord_object.update({"wba": wba})
 
