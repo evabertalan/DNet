@@ -297,7 +297,6 @@ class DNetGraphs:
         res_id_label_shift=0,
         color_edge_by_occupnacy=False,
     ):
-
         wba = self.graph_coord_object["wba"]
         if occupancy:
             wba.filter_occupancy(occupancy)
@@ -325,7 +324,7 @@ class DNetGraphs:
             )
             color_bar_label = "Edge value"
 
-        if color_edge_by_occupnacy:
+        elif color_edge_by_occupnacy:
             values = np.linspace(0.1, 1, 10)
             cmap, norm, occupany_colors = _hf.get_edge_color_map(values)
             color_bar_label = "H-bond occupancy"
@@ -340,10 +339,10 @@ class DNetGraphs:
                 y = [edge_line[0][1], edge_line[1][1]]
 
                 if e in edge_value_dict.keys():
-                    val = list(edge_value_dict.values())[list(graph.edges).index(e)]
+                    val = edge_value_dict[e]
                     color = edge_colors.to_rgba(val)
 
-                elif occ_per_wire:
+                elif color_edge_by_occupnacy:
                     occ = occ_per_wire[list(graph.edges).index(e)]
                     color = occupany_colors.to_rgba(occ)
 
@@ -520,6 +519,11 @@ class DNetGraphs:
 
         if color_info or color_edge_by_occupnacy or color_edges_by:
             cbar = fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax)
+            if all(isinstance(x, np.integer) for x in cbar.get_ticks()):
+                tick_centers = (norm.boundaries[:-1] + norm.boundaries[1:]) / 2
+                cbar.ax.set_yticks(tick_centers)
+                cbar.ax.set_yticklabels(norm.boundaries[:-1])
+
             cbar.ax.tick_params(
                 labelsize=self.plot_parameters["plot_tick_fontsize"] - 3
             )

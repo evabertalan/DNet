@@ -417,13 +417,15 @@ def get_edge_color_map(values):
     if isint:
         low_color = "#C0C0C0"  # light blue
         high_color = "#1C189C"  # dark blue
-        norm = BoundaryNorm(
-            boundaries=np.arange(min(values), max(values) + 1, 1),
-            ncolors=len(set(values)),
-        )
+
+        # low_color = "#D6E6FF"  # light blue
+        # high_color = "#1C189C"  # dark blue
+        unique_values = np.arange(min(np.unique(values)), max(np.unique(values)) + 1)
         cmap = LinearSegmentedColormap.from_list(
-            "custom", [low_color, high_color], N=len(set(values))
+            "custom", [low_color, high_color], N=len(unique_values)
         )
+        unique_values = np.insert(unique_values, len(unique_values), max(values) + 1)
+        norm = BoundaryNorm(unique_values, cmap.N)
     else:
         low_color = "#E5E5E5"  # light gray
         high_color = "#424242"  # dark gray
