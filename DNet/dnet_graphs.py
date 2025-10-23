@@ -16,7 +16,6 @@ import os
 import argparse
 import glob
 import ast
-import pdb
 
 
 class DNetGraphs:
@@ -315,7 +314,9 @@ class DNetGraphs:
         edge_value_dict = {}
         if color_edges_by:
             edge_value_dict = _hf.read_edge_color_data(color_edges_by)
-            # edge_colors_data, cmap, norm = _hf.get_color_map(edge_value_dict)
+            edge_value_dict = {
+                k: v for k, v in edge_value_dict.items() if k in graph.edges
+            }
             cmap, norm, edge_colors = _hf.get_edge_color_map(
                 list(edge_value_dict.values())
             )
