@@ -838,7 +838,7 @@ def main():
     )
 
     parser.add_argument(
-        "--atomewise",
+        "--atomwise",
         dest="residuewise",
         action="store_false",
         help="Calculate hydrogen bonds at the atomic level instead of the residue level (overrides --residuewise).",

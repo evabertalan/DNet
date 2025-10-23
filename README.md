@@ -124,7 +124,7 @@ The dnet-graphs module analyzes molecular dynamics (MD) trajectories to construc
 | `--stop`                 | -              | Stopping frame index for trajectory analysis. If not provided, processes until the last frame.                                                                |
 | `--step`                 | `1`            | Step size for iterating through the trajectory frames. For example, `--step 10` processes every 10th frame to reduce computation time.                        |
 | `--residuewise`          | `True`         | Calculate hydrogen bonds at the residue level instead of the atomic level.                                                                                    |
-| `--atomewise`            | `False`        | Calculate hydrogen bonds at the atomic level instead of the residue level (overrides `--residuewise`).                                                        |
+| `--atomwise`            | `False`        | Calculate hydrogen bonds at the atomic level instead of the residue level (overrides `--residuewise`).                                                        |
 | `--wrap_dcd`             | `true`         | Apply periodic boundary condition wrapping to keep molecules inside the simulation box. Use 'true' or 'false'.                                                |
 | `--color_data`           | `False`        | Color nodes in the graph based on external data values.                                                                                                       |
 | `--node_color_selection` | `protein`      | Selection criteria for which nodes to color in the graph.                                                                                                     |

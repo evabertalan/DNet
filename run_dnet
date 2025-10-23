@@ -66,7 +66,7 @@ PLOT_PARAMETERS="{'formats': ['png', 'eps']}"
 ATOMWISE_FOLDER=${OUTPUT_FOLDER}/atomwise_graphs/
 mkdir -p $ATOMWISE_FOLDER
 
-python3 -m dnet_graphs "$PSF_FILE" $DCD_FILES --atomewise --plot_parameters "$PLOT_PARAMETERS"  --output_folder "$ATOMWISE_FOLDER" --max_water "$MAX_WATER" --occupancy "$OCCUPANCY" --selection "$SELECTION" --additional_donors "$DONORS" --additional_acceptors "$ACCEPTORS" >> "$LOGFILE" 2>&1 &
+python3 -m dnet_graphs "$PSF_FILE" $DCD_FILES --atomwise --plot_parameters "$PLOT_PARAMETERS"  --output_folder "$ATOMWISE_FOLDER" --max_water "$MAX_WATER" --occupancy "$OCCUPANCY" --selection "$SELECTION" --additional_donors "$DONORS" --additional_acceptors "$ACCEPTORS" >> "$LOGFILE" 2>&1 &
 
 wait
 echo "$(date '+%Y-%m-%d %H:%M:%S'): Finished DNet-pKa and DNet-Graphs calculation..." >> "$LOGFILE"
