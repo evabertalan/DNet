@@ -10,8 +10,10 @@ import numpy as np
 import pandas as pd
 import MDAnalysis as mda
 from MDAnalysis.analysis.distances import distance_array
+from MDAnalysis.lib.distances import apply_PBC
 from MDAnalysis.transformations import wrap
 import matplotlib.pyplot as plt
+from scipy.spatial import cKDTree
 
 
 class DNetDist:
@@ -95,7 +97,6 @@ class DNetDist:
         water_definition = "resname TIP3 and name OH2"
 
         box = self.u.dimensions
-        waters = self.u.select_atoms(water_definition)
 
         if len(self.edges[0][0].split("-")) == 3:
             # if Bridge analysis was done with residuewise=True, for the distance calculation we take the CA atom
@@ -141,42 +142,50 @@ class DNetDist:
                 for node in self.nodes
             ]
 
-        self.distances_over_time = []
-        self.water_around_group_over_time = []
-        self.water_around_total_res_over_time = []
-        self.frames = []
+            sidechain_atoms = [
+                self.u.select_atoms(
+                    f"(segid {node.split('-')[0]} and resname {node.split('-')[1]} and resid {node.split('-')[2]}) and (name {selection_bonding_group})"
+                )
+                for node in self.nodes
+            ]
 
-        # for ts in self.u.trajectory[:: self.step_size]:
-        for ts in self.u.trajectory[slice(start, stop, self.step_size)]:
-            self.frames.append(ts.frame)
+            water_atoms = self.u.select_atoms(water_definition)
 
-            water_around_group = []
-            water_around_total_res = []
-            for res in n:
-                group_w = (
-                    distance_array(res.positions, waters.positions, box=box)
-                    < self.max_water_distance
-                ).sum()
-                water_around_group.append(group_w)
+            self.distances_over_time = []
+            self.water_around_group_over_time = []
+            self.water_around_total_res_over_time = []
+            self.frames = []
 
-                all_res_groups = f"(segid {res.segids[0]} and resname {res.resnames[0]} and resid {res.resids[0]}) and (name {selection_bonding_group})"
-                water_around_total_res.append(
-                    len(
-                        self.u.select_atoms(
-                            f"({water_definition}) and (around {self.max_water_distance} {all_res_groups})"
-                        )
-                    )
+            for ts in self.u.trajectory[slice(start, stop, self.step_size)]:
+                self.frames.append(ts.frame)
+                box = self.u.dimensions
+
+                water_pos = water_atoms.positions.copy()
+
+                res_positions = np.concatenate([res.positions for res in n])
+                dists = distance_array(res_positions, water_pos, box=box)
+                water_around_group = (
+                    (dists < self.max_water_distance).sum(axis=1).tolist()
                 )
 
-            frame_distances = []
-            for res1, res2 in zip(e1, e2):
-                box = self.u.dimensions
-                dist = distance_array(res1.positions, res2.positions, box=box)[0][0]
-                frame_distances.append(dist)
+                tree = cKDTree(water_pos, boxsize=box[:3])
+                water_around_total_res = []
 
-            self.distances_over_time.append(frame_distances)
-            self.water_around_group_over_time.append(water_around_group)
-            self.water_around_total_res_over_time.append(water_around_total_res)
+                for group in sidechain_atoms:
+                    group_pos = group.positions
+                    neighbor_lists = tree.query_ball_point(
+                        group_pos, r=self.max_water_distance
+                    )
+                    unique_waters = np.unique(np.concatenate(neighbor_lists))
+                    water_around_total_res.append(len(unique_waters))
+
+                e1_pos = np.array([r.positions.mean(axis=0) for r in e1])
+                e2_pos = np.array([r.positions.mean(axis=0) for r in e2])
+                frame_distances = np.linalg.norm(e1_pos - e2_pos, axis=1).tolist()
+
+                self.distances_over_time.append(frame_distances)
+                self.water_around_group_over_time.append(water_around_group)
+                self.water_around_total_res_over_time.append(water_around_total_res)
 
     def write_results_to_df(self):
         self.distances_df = pd.DataFrame(

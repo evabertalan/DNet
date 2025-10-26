@@ -209,7 +209,8 @@ class NetworkAnalysis(BasicFunctionality):
             raise AssertionError("The root node is not in the current graph")
         if (not self.residuewise) and atomwise_whole_residue:
             components = []
-            for component in _nx.connected_component_subgraphs(graph):
+            for c in _nx.connected_components(graph):
+                component = graph.subgraph(c).copy()
                 for start_point in start_points:
                     if start_point in component.nodes():
                         components.append(component)

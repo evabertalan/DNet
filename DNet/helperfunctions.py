@@ -13,7 +13,6 @@ from matplotlib.cm import ScalarMappable
 import matplotlib as mpl
 from pathlib import Path
 import ast
-import pdb
 
 warnings.filterwarnings("ignore")
 
