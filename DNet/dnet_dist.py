@@ -179,9 +179,11 @@ class DNetDist:
                     unique_waters = np.unique(np.concatenate(neighbor_lists))
                     water_around_total_res.append(len(unique_waters))
 
-                e1_pos = np.array([r.positions.mean(axis=0) for r in e1])
-                e2_pos = np.array([r.positions.mean(axis=0) for r in e2])
-                frame_distances = np.linalg.norm(e1_pos - e2_pos, axis=1).tolist()
+                frame_distances = []
+                for res1, res2 in zip(e1, e2):
+                    box = self.u.dimensions
+                    dist = distance_array(res1.positions, res2.positions, box=box)[0][0]
+                    frame_distances.append(dist)
 
                 self.distances_over_time.append(frame_distances)
                 self.water_around_group_over_time.append(water_around_group)
