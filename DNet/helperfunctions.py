@@ -415,7 +415,7 @@ def get_edge_color_map(values):
     isint = all(isinstance(x, int) for x in values)
     if isint:
         low_color = "#C0C0C0"  # light blue
-        high_color = "#1C189C"  # dark blue
+        high_color = "#002F6C"  # dark blue
 
         # low_color = "#D6E6FF"  # light blue
         # high_color = "#1C189C"  # dark blue

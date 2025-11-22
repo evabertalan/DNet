@@ -168,7 +168,7 @@ class DNetDist:
                     (dists < self.max_water_distance).sum(axis=1).tolist()
                 )
 
-                tree = cKDTree(water_pos, boxsize=box[:3])
+                tree = cKDTree(water_pos)
                 water_around_total_res = []
 
                 for group in sidechain_atoms:
