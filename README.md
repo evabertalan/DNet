@@ -9,7 +9,7 @@
  - track distance changes of each sampled H-bond over time
  - calculate the free energy profile of each H-bonding interaction by calculating the PMF along the distances between the hydrogen-bonding atoms
  - estimate the number of sampled stable conformational modes (Population Number, PN) from the number of minima on the PMF profile
- - map the most frequently sampled pKa value, the average number of nearby water molecules, and the number of sampled conformational substates onto the hydrogen-bond network
+ - map the most frequently sampled pKa value, the average number of nearby water molecules, and the number of sampled conformational substates onto the H-bond network
 
 The detailed description of the tool and an examples of its application is published in: https://pubs.acs.org/doi/10.1021/acs.jctc.5c01366
 
