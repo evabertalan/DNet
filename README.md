@@ -1,8 +1,19 @@
 # DNet (Dynamic Networks)
 
-**DNet** is a tool for performing pKa calculations, generating atomwise and residuewise graphs, computing pairwise distances, calculating water interactions, and generating plots based on the analysis.
+**DNet** is a portable python tool for performing pKa estimation and H-bond netwrok analysis on molecular dynamics simulations of proteins.
 
-The final output of the tool is a summary figure for each H-bonding amino acid from the simulation, created with the [DNet-Plot module](#iv-dnet-plot)
+**With DNet one can:**
+ - estimate the fluctuation of pKa values of titratable amino acid side chains using the included [propkatraj](https://github.com/Becksteinlab/propkatraj) version over the simulation trajectory and retrieve the most frequently sampled value
+ - calculate and plot the water-mediated hydrogen-bond (H-bond) networks
+ - analyze the water environment of residues participating in the H-bond network by calculating the number of water molecules fluctuating in the vicinity of each residue
+ - track distance changes of each sampled H-bond over time
+ - calculate the free energy profile of each H-bonding interaction by calculating the PMF along the distances between the hydrogen-bonding atoms
+ - estimate the number of sampled stable conformational modes (Population Number, PN) from the number of minima on the PMF profile
+ - map the most frequently sampled pKa value, the average number of nearby water molecules, and the number of sampled conformational substates onto the hydrogen-bond network
+
+The detailed description of the tool and an examples of its application is published in: https://pubs.acs.org/doi/10.1021/acs.jctc.5c01366
+
+The final output of the tool is a summary figure for each H-bonding residue from the simulation, created with the [DNet-Plot module](#iv-dnet-plot)
 ##### DNet summary plot
 ![dnet-plot-main-result](https://github.com/user-attachments/assets/db809cd9-f2d6-4ae8-8d12-70f52f12891c)
 
@@ -38,7 +49,8 @@ For a more customized set up and to understand all the possible input parameters
 
 ## Advanced Usage
 
-Each module (dnet_pKa, dnet_graphs, dnet_dist, dnet_plot) supports the built in help function: `python3 -m dnet_dist --help` which will output the list of all supported arguments for the module.
+DNet consist of four modules: dnet_pKa, dnet_graphs, dnet_dist, dnet_plot.
+Each module `python3 -m dnet_dist --help` which will output the list of all supported arguments for the module.
 
 ---
 
@@ -253,6 +265,8 @@ python3 -m dnet_plot --plot_folder 'results/plots/' --graphs_info_txt 'results/g
 * Run the script on a high-performance machine for large trajectories
 
 ## How to cite:
-
-...
+DNET: A Graph-Based Tool and Workflow for Dynamic Hydrogen-Bond Networks and Applications for Visual Rhodopsins
+Éva Bertalan, Matthew J. Rodrigues, Deborah Walter, Gebhard F. X. Schertler, and Ana-Nicoleta Bondar
+Journal of Chemical Theory and Computation Article ASAP
+[DOI: 10.1021/acs.jctc.5c01366](https://pubs.acs.org/doi/10.1021/acs.jctc.5c01366)
 
