@@ -1,10 +1,10 @@
 # DNet (Dynamic Networks)
 
-**DNet** is a portable python tool for performing pKa estimation and H-bond netwrok analysis on molecular dynamics simulations of proteins.
+**DNet** is a portable python tool for performing pKa estimation and hydrogen-bond (H-bond) netwrok analysis on MD simulations of proteins.
 
 **With DNet one can:**
  - estimate the fluctuation of pKa values of titratable amino acid side chains using the included [propkatraj](https://github.com/Becksteinlab/propkatraj) version over the simulation trajectory and retrieve the most frequently sampled value
- - calculate and plot the water-mediated hydrogen-bond (H-bond) networks
+ - calculate and plot the water-mediated H-bond networks
  - analyze the water environment of residues participating in the H-bond network by calculating the number of water molecules fluctuating in the vicinity of each residue
  - track distance changes of each sampled H-bond over time
  - calculate the free energy profile of each H-bonding interaction by calculating the PMF along the distances between the hydrogen-bonding atoms
@@ -55,7 +55,7 @@ Each module `python3 -m dnet_dist --help` which will output the list of all supp
 ---
 
 ### I. DNet-pKa
-The dnet_pKa module is to analyze and compute pKa values from molecular dynamics (MD) trajectories. It utilizes [MDAnalysis](https://www.mdanalysis.org/) to process Protein Structure Files (PSF) and trajectory files (DCD), applying pKa calculations through the [PropkaTraj](https://github.com/Becksteinlab/propkatraj) library. 
+The dnet_pKa module is to analyze and compute pKa values from MD trajectories. It utilizes [MDAnalysis](https://www.mdanalysis.org/) to process Protein Structure Files (PSF) and trajectory files (DCD), applying pKa calculations through the [PropkaTraj](https://github.com/Becksteinlab/propkatraj) library. 
 * Processes MD trajectory files (PSF and DCD) to compute pKa values.
 * Allows selection of specific residues using MDAnalysis selection syntax.
 * Computes statistical summaries of pKa values.
@@ -69,7 +69,7 @@ The dnet_pKa module is to analyze and compute pKa values from molecular dynamics
 | Argument | Description |
 |----------|-------------|
 | `psf` | Path to the Protein Structure File (PSF). This file defines the molecular topology of the system. |
-| `dcd` | Path(s) to the trajectory DCD files. You can provide multiple DCD files separated by spaces or use a wildcard pattern (e.g.`traj_*.dcd`). These files contain the molecular dynamics trajectory data.|
+| `dcd` | Path(s) to the trajectory DCD files. You can provide multiple DCD files separated by spaces or use a wildcard pattern (e.g.`traj_*.dcd`). These files contain the MD trajectory data.|
 
 ##### Optional arguments:
 | Argument           | Default Value | Description                                                                                                                                        |
@@ -108,7 +108,7 @@ Where `<base_name>` is the base file name of the PSF file.
 ---
 
 ### II. DNet-Graphs
-The dnet-graphs module analyzes molecular dynamics (MD) trajectories to construct and visualize water wire networks based on hydrogen bond connectivity. It allows users to process MD simulation files, extract hydrogen bond networks, and generate graphs and plots.
+The dnet-graphs module analyzes MD trajectories to construct and visualize water wire networks based on hydrogen bond connectivity. It allows users to process MD simulation files, extract hydrogen bond networks, and generate graphs and plots.
 * Processes MD trajectory files (PSF and DCD) to compute water meditated H-bond networks with [Bridge](https://github.com/maltesie/bridge) and [C-Graphs](https://github.com/evabertalan/cgraphs).
 * Customize node and edge attributes for visualization
 * Generate plots for water wire graphs
@@ -168,7 +168,7 @@ Where `<base_name>` is the base file name of the PSF file.
 ---
 
 ### III. DNet-Dist
-The dnet-dist module analyzes the distances between hydrogen bonding atoms of the networks and water molecule distribution around the atoms in molecular dynamics (MD) simulations.
+The dnet-dist module analyzes the distances between hydrogen bonding atoms of the networks and water molecule distribution around the atoms in MD simulations.
 The script calculates:
 * Distances between hydrogen-bonded residues or atoms over the simulation trajectory.
 * Number of water molecules near these bonded groups.
