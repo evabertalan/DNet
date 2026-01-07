@@ -1,6 +1,6 @@
 # DNet (Dynamic Networks)
 
-**DNet** is a portable python tool for performing pKa estimation and hydrogen-bond (H-bond) netwrok analysis on MD simulations of proteins.
+**DNet** is a portable python tool for performing pKa estimation and hydrogen-bond (H-bond) netwrok analysis on molecular dynamics (MD) simulations of proteins.
 
 **With DNet one can:**
  - estimate the fluctuation of pKa values of titratable amino acid side chains using the included [propkatraj](https://github.com/Becksteinlab/propkatraj) version over the simulation trajectory and retrieve the most frequently sampled value
