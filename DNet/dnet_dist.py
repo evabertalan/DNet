@@ -176,7 +176,11 @@ class DNetDist:
                     neighbor_lists = tree.query_ball_point(
                         group_pos, r=self.max_water_distance
                     )
-                    unique_waters = np.unique(np.concatenate(neighbor_lists))
+                    unique_waters = (
+                        np.unique(np.concatenate(neighbor_lists))
+                        if any(neighbor_lists)
+                        else []
+                    )
                     water_around_total_res.append(len(unique_waters))
 
                 frame_distances = []
