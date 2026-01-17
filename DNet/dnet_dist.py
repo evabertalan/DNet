@@ -69,7 +69,9 @@ class DNetDist:
         self.max_water_distance = max_water_distance
 
         if selection:
-            self.u.select_atoms(selection)
+            sel = self.u.select_atoms(selection)
+        else:
+            sel = self.u.select_atoms("all")
 
         bonding_groups = (
             "OH2",
@@ -102,20 +104,20 @@ class DNetDist:
             # if Bridge analysis was done with residuewise=True, for the distance calculation we take the CA atom
             # not recommended for distance calumniation, using residuewise=False gives the distance we are interested in
             e1 = [
-                self.u.select_atoms(
+                sel.select_atoms(
                     f"segid {edge[0].split('-')[0]} and resname {edge[0].split('-')[1]} and resid {edge[0].split('-')[2]} and name CA"
                 )
                 for edge in self.edges
             ]
             e2 = [
-                self.u.select_atoms(
+                sel.select_atoms(
                     f"segid {edge[1].split('-')[0]} and resname {edge[1].split('-')[1]} and resid {edge[1].split('-')[2]} and name CA"
                 )
                 for edge in self.edges
             ]
 
             n = [
-                self.u.select_atoms(
+                sel.select_atoms(
                     f"segid {node.split('-')[0]} and resname {node.split('-')[1]} and resid {node.split('-')[2]} and name CA"
                 )
                 for node in self.nodes
@@ -123,27 +125,27 @@ class DNetDist:
 
         else:  # for residuewise=False, distance can be accurately calculated between the actual H-bonding atom pairs
             e1 = [
-                self.u.select_atoms(
+                sel.select_atoms(
                     f"segid {edge[0].split('-')[0]} and resname {edge[0].split('-')[1]} and resid {edge[0].split('-')[2]} and name {edge[0].split('-')[3]}"
                 )
                 for edge in self.edges
             ]
             e2 = [
-                self.u.select_atoms(
+                sel.select_atoms(
                     f"segid {edge[1].split('-')[0]} and resname {edge[1].split('-')[1]} and resid {edge[1].split('-')[2]} and name {edge[1].split('-')[3]}"
                 )
                 for edge in self.edges
             ]
 
             n = [
-                self.u.select_atoms(
+                sel.select_atoms(
                     f"segid {node.split('-')[0]} and resname {node.split('-')[1]} and resid {node.split('-')[2]} and name {node.split('-')[3]}"
                 )
                 for node in self.nodes
             ]
 
             sidechain_atoms = [
-                self.u.select_atoms(
+                sel.select_atoms(
                     f"(segid {node.split('-')[0]} and resname {node.split('-')[1]} and resid {node.split('-')[2]}) and (name {selection_bonding_group})"
                 )
                 for node in self.nodes
