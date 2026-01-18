@@ -98,6 +98,7 @@ class DNetGraphs:
         connected_component_root=None,
         occupancy=None,
         dont_save_graph_objects=False,
+        collect_angles=False,
     ):
         self.distance = distance
         self.connected_component_root = connected_component_root
@@ -155,7 +156,9 @@ class DNetGraphs:
             stop=stop,
         )
 
-        wba.set_water_wires(water_in_convex_hull=max_water, max_water=max_water)
+        angles_per_frame = wba.set_water_wires(
+            water_in_convex_hull=max_water, max_water=max_water
+        )
         wba.compute_average_water_per_wire()
         if connected_component_root:
             if occupancy:
@@ -191,6 +194,9 @@ class DNetGraphs:
             plot_folder = _hf.create_directory(
                 Path(self.workfolder, f"{self.max_water}_water_wires", self.sim_name)
             )
+
+        if collect_angles:
+            angles_per_frame.to_csv(Path(plot_folder, f"{self.sim_name}_angles.csv")),
 
         df = pd.DataFrame.from_dict(
             _hf.edge_info(wba, self.graph.edges), orient="index"
@@ -929,6 +935,13 @@ def main():
         type=str,
         help="Path to the .txt file, which contains values according to edges need to be colored. Each row of the .txt file needs to be: edge1 edge2 value ",
     )
+
+    parser.add_argument(
+        "--collect_angles",
+        default=False,
+        action="store_true",
+        help="Create a csv file with the angles of all donor-acceptor pairs that are within the set H-bond distance criterion in each frame (default: False).",
+    )
     args = parser.parse_args()
 
     base = os.path.basename(args.psf)
@@ -982,6 +995,7 @@ def main():
         occupancy=float(args.occupancy),
         connected_component_root=args.root,
         dont_save_graph_objects=args.dont_save_graph_objects,
+        collect_angles=args.collect_angles,
     )
 
     dnet_graphs.plot_graphs(
