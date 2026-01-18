@@ -196,13 +196,27 @@ class DNetGraphs:
             _hf.edge_info(wba, self.graph.edges), orient="index"
         ).reset_index()
         df.columns = ["edge", "water", "occupancy"]
+        df["edge"] = df["edge"].str.replace(":", "_")
 
         waters = f"_max_{self.max_water}_water_bridges"
         df.to_csv(
-            Path(plot_folder, f"{self.sim_name}{waters}_water_occupancy_edge_info.txt"),
+            Path(
+                plot_folder,
+                f"{self.sim_name}{waters}_water_occupancy_all_edge_info.txt",
+            ),
             sep="\t",
             index=False,
         )
+
+        if occupancy:
+            df[df["occupancy"] >= occupancy].to_csv(
+                Path(
+                    plot_folder,
+                    f"{self.sim_name}{waters}_water_{occupancy}_occupancy_all_edge_info.txt",
+                ),
+                sep="\t",
+                index=False,
+            )
 
         if not dont_save_graph_objects:
             if connected_component_root:
