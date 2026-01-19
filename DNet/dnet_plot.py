@@ -26,10 +26,18 @@ class DNetPlot:
         self.graph_nodes = self._get_H_bond_nodes(graphs_info_txt)
         pKa_nodes = [("-").join(node.split("-")[0:3]) for node in self.graph_nodes]
 
-        pKas = pd.read_csv(pKas_for_frame_csv, index_col="frame")
-        pKas = self._handle_HSE(self.graph_nodes, pKas)
-        self.pKas = pKas.loc[:, pKas.columns.isin(pKa_nodes)][::step]
-        self.pKas.to_csv(Path(self.plot_folder, f"pKa_nodes_per_freame_{sim_name}.csv"))
+        if pKas_for_frame_csv and Path(pKas_for_frame_csv).exists():
+            pKas = pd.read_csv(pKas_for_frame_csv, index_col="frame")
+            pKas = self._handle_HSE(self.graph_nodes, pKas)
+            self.pKas = pKas.loc[:, pKas.columns.isin(pKa_nodes)][::step]
+            self.pKas.to_csv(
+                Path(self.plot_folder, f"pKa_nodes_per_freame_{sim_name}.csv")
+            )
+        else:
+            print(
+                "No pKa time series file was found. Module continues without plotting pKa values."
+            )
+            self.pKas = None
 
         self.distances = pd.read_csv(pair_distances_csv, index_col=0)
         self.distances.to_csv(
@@ -188,7 +196,10 @@ class DNetPlot:
             graph_node = ("-").join(graph_node.split("-")[0:3])
             total_number_of_states = 0
 
-            pKa_column = graph_node if graph_node in self.pKas.columns else None
+            if self.pKas and graph_node in self.pKas.columns:
+                pKa_column = graph_node
+            else:
+                pKa_column = None
 
             dist_columns = [
                 col
@@ -288,7 +299,7 @@ class DNetPlot:
             )
             ax[row, 0] = self._ax_util(
                 ax[row, 0],
-                title=self._shift_resid_index(graph_node, res_id_label_shift),
+                title=f"total # of waters within 3.5 Å of {self._shift_resid_index(graph_node, res_id_label_shift)}",
                 xlabel="Time (ns)",
                 ylabel="#waters",
                 only_integers=True,
@@ -509,7 +520,12 @@ class DNetPlot:
             unique_hbond_per_res.append([graph_node, len(unique_res)])
 
             # print("total_number_of_states", total_number_of_states)
-            fig.tight_layout(h_pad=4.0)
+            fig.suptitle(
+                self._shift_resid_index(graph_node, res_id_label_shift),
+                fontsize=text_fs * 1.2,
+            )
+            fig.tight_layout(rect=[0, 0, 1, 0.97])
+            # fig.tight_layout(h_pad=4.0)
             for img_format in plot_formats:
                 fig.savefig(
                     Path(
@@ -570,7 +586,7 @@ def main():
 
     parser.add_argument(
         "--pKas_for_frame_csv",
-        required=True,
+        required=False,
         help="",
     )
 
@@ -630,7 +646,6 @@ def main():
 
     for file in [
         args.graphs_info_txt,
-        args.pKas_for_frame_csv,
         args.pair_distances_csv,
         args.water_within_csv,
         args.total_water_within_csv,
