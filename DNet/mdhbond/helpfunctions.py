@@ -297,7 +297,7 @@ def check_angle(
 
 
 def check_angle_water(
-    atoms_in_distance, oxygen_coordinates, hydrogen_coordinates, cut_angle
+    atoms_in_distance, oxygen_coordinates, hydrogen_coordinates, cut_angle, sel
 ):
     pairs = np.asarray(atoms_in_distance)
     a_index = np.repeat(pairs[:, 0], 4)
@@ -314,7 +314,21 @@ def check_angle_water(
     angle_check = angles <= cut_angle
     bond_index = angle_check.reshape(-1, 4).any(axis=1)
     hbond_pairs = pairs[bond_index]
-    return hbond_pairs
+
+    if sel:
+        pair_names = [
+            f"{_mdsel_to_resname(sel[p[0]])}_{_mdsel_to_resname(sel[p[1]])}"
+            for p in pairs
+        ]
+        angle_data = {
+            "pair_names": pair_names,
+            "angle_deviation": angles,
+            "angles": 180 - angles,
+        }
+    else:
+        angle_data = None
+
+    return hbond_pairs, angle_data
 
 
 def intervals(timeseries):
