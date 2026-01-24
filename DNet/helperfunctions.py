@@ -6,13 +6,14 @@ import warnings
 import numpy as np
 import networkx as nx
 from sklearn.decomposition import PCA
-import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.colors import LinearSegmentedColormap, Normalize, BoundaryNorm
 from matplotlib.cm import ScalarMappable
 import matplotlib as mpl
 from pathlib import Path
 import ast
+import plotly.express as px
+
 
 warnings.filterwarnings("ignore")
 
@@ -55,17 +56,17 @@ def get_plot_parameters(plot_parameters):
         "node_label_size": (
             plot_parameters["node_label_size"]
             if "node_label_size" in plot_parameters.keys()
-            else 12
+            else 15
         ),
         "edge_label_size": (
             plot_parameters["edge_label_size"]
             if "edge_label_size" in plot_parameters.keys()
-            else 10
+            else 15
         ),
         "node_size": (
             plot_parameters["node_size"]
             if "node_size" in plot_parameters.keys()
-            else 150
+            else 20
         ),
         "graph_color": (
             plot_parameters["graph_color"]
@@ -90,7 +91,7 @@ def get_plot_parameters(plot_parameters):
         "plot_title_fontsize": (
             plot_parameters["plot_title_fontsize"]
             if "plot_title_fontsize" in plot_parameters.keys()
-            else 20
+            else 30
         ),
         "plot_label_fontsize": (
             plot_parameters["plot_label_fontsize"]
@@ -243,15 +244,61 @@ def get_connected_components(graph):
 
 
 def create_plot(title="", xlabel="", ylabel="", plot_parameters={}):
-    fig, ax = plt.subplots(figsize=plot_parameters["figsize"])
-    ax.spines["right"].set_visible(False)
-    ax.spines["top"].set_visible(False)
-    ax.set_title(title, fontsize=plot_parameters["plot_title_fontsize"])
-    ax.set_xlabel(xlabel, fontsize=plot_parameters["plot_label_fontsize"])
-    ax.set_ylabel(ylabel, fontsize=plot_parameters["plot_label_fontsize"])
-    ax.tick_params(axis="x", labelsize=plot_parameters["plot_tick_fontsize"])
-    ax.tick_params(axis="y", labelsize=plot_parameters["plot_tick_fontsize"])
-    return fig, ax
+    fig = px.scatter()  # empty figure, add data later
+
+    fig.update_layout(
+        title=dict(
+            text=title,
+            font=dict(size=plot_parameters["plot_title_fontsize"]),
+            x=0.5,
+            xanchor="center",
+            y=0.95,  # vertical position (1=top of figure)
+            yanchor="top",
+        ),
+        margin=dict(t=100),
+        xaxis_title=dict(
+            text=xlabel, font=dict(size=plot_parameters["plot_label_fontsize"])
+        ),
+        yaxis_title=dict(
+            text=ylabel, font=dict(size=plot_parameters["plot_label_fontsize"])
+        ),
+        width=plot_parameters["figsize"][0] * 100,
+        height=plot_parameters["figsize"][1] * 100,
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        xaxis=dict(
+            showgrid=False,
+            zeroline=False,
+            showline=True,
+            linecolor="black",
+            showticklabels=True,
+            ticks="outside",
+            linewidth=2,
+        ),
+        yaxis=dict(
+            showgrid=False,
+            zeroline=False,
+            showline=True,
+            linecolor="black",
+            showticklabels=True,
+            ticks="outside",
+            linewidth=2,
+        ),
+    )
+
+    fig.update_xaxes(
+        tickfont=dict(size=plot_parameters["plot_tick_fontsize"]),
+        showline=True,
+        mirror=False,
+    )
+
+    fig.update_yaxes(
+        tickfont=dict(size=plot_parameters["plot_tick_fontsize"]),
+        showline=True,
+        mirror=False,
+    )
+
+    return fig
 
 
 def read_propka_file(file_path, selected_nodes):
