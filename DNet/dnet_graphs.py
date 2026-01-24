@@ -19,6 +19,7 @@ import glob
 import plotly.graph_objects as go
 
 import ast
+import json
 
 
 class DNetGraphs:
@@ -365,7 +366,7 @@ class DNetGraphs:
         node_color_selection=None,
         node_color_map="viridis",
         color_edges_by=None,
-        res_id_label_shift=0,
+        res_id_label_shift={},
         color_edge_by_occupnacy=False,
     ):
         if "wba" not in self.graph_coord_object:
@@ -598,9 +599,9 @@ class DNetGraphs:
 
                     elif res_name in _hf.amino_d.keys():
                         res_label = (
-                            f"{chain_id}-{_hf.amino_d[res_name]}{res_id}"
+                            f"{chain_id}-{_hf.amino_d[res_name]}{int(res_id) + int(res_id_label_shift[chain_id])}"
                             if self.plot_parameters["show_chain_label"]
-                            else f"{_hf.amino_d[res_name]}{int(res_id) + res_id_label_shift}"
+                            else f"{_hf.amino_d[res_name]}{int(res_id) + int(res_id_label_shift[chain_id])}"
                         )
 
                         fig.add_annotation(
@@ -616,9 +617,9 @@ class DNetGraphs:
 
                     else:
                         res_label = (
-                            f"{chain_id}-{res_name}{res_id}"
+                            f"{chain_id}-{res_name}{int(res_id) + int(res_id_label_shift[chain_id])}"
                             if self.plot_parameters["show_chain_label"]
-                            else f"{res_name}{int(res_id) + res_id_label_shift}"
+                            else f"{res_name}{int(res_id) + int(res_id_label_shift[chain_id])}"
                         )
 
                         fig.add_annotation(
@@ -1011,9 +1012,9 @@ def main():
     )
     parser.add_argument(
         "--res_id_label_shift",
-        default=0,
-        type=int,
-        help="Shift residue ID labels by a specified amount in plots (default: 0).",
+        default={},
+        type=json.loads,
+        help='Shift residue ID labels by a given offset. Please provide a value in a json format with an offset per segment e.g: {"PROA": 12, "PROB": 8}',
     )
 
     parser.add_argument(
@@ -1155,7 +1156,7 @@ def main():
         color_data=args.color_data,
         node_color_selection=args.node_color_selection,
         node_color_map=args.node_color_map,
-        res_id_label_shift=int(args.res_id_label_shift),
+        res_id_label_shift=dict(args.res_id_label_shift),
         color_edge_by_occupnacy=args.color_edge_by_occupnacy,
         color_edges_by=args.color_edges_by_file,
     )
@@ -1170,7 +1171,7 @@ def main():
             color_data=args.color_data,
             node_color_selection=args.node_color_selection,
             node_color_map=args.node_color_map,
-            res_id_label_shift=int(args.res_id_label_shift),
+            res_id_label_shift=dict(args.res_id_label_shift),
             color_edge_by_occupnacy=args.color_edge_by_occupnacy,
             color_edges_by=args.color_edges_by_file,
         )
