@@ -588,20 +588,27 @@ class DNetGraphs:
                     )
 
         if label_nodes:
-            self.logger.info(f"Shifting resid labels with {res_id_label_shift}")
+            if res_id_label_shift:
+                self.logger.info(f"Shifting resid labels with {res_id_label_shift}")
             for n in graph.nodes:
                 n = _hf.get_node_name(n)
                 if n in node_pca_pos.keys():
                     values = node_pca_pos[n]
                     chain_id, res_name, res_id = _hf.get_node_name_pats(n)
+
+                    res_id_offset = (
+                        int(res_id_label_shift[chain_id])
+                        if chain_id in res_id_label_shift.keys()
+                        else 0
+                    )
                     if res_name in _hf.water_types:
                         pass  # temporary turn off water labels
 
                     elif res_name in _hf.amino_d.keys():
                         res_label = (
-                            f"{chain_id}-{_hf.amino_d[res_name]}{int(res_id) + int(res_id_label_shift[chain_id])}"
+                            f"{chain_id}-{_hf.amino_d[res_name]}{int(res_id) + res_id_offset}"
                             if self.plot_parameters["show_chain_label"]
-                            else f"{_hf.amino_d[res_name]}{int(res_id) + int(res_id_label_shift[chain_id])}"
+                            else f"{_hf.amino_d[res_name]}{int(res_id) + res_id_offset}"
                         )
 
                         fig.add_annotation(
@@ -617,9 +624,9 @@ class DNetGraphs:
 
                     else:
                         res_label = (
-                            f"{chain_id}-{res_name}{int(res_id) + int(res_id_label_shift[chain_id])}"
+                            f"{chain_id}-{res_name}{int(res_id) + res_id_offset}"
                             if self.plot_parameters["show_chain_label"]
-                            else f"{res_name}{int(res_id) + int(res_id_label_shift[chain_id])}"
+                            else f"{res_name}{int(res_id) + res_id_offset}"
                         )
 
                         fig.add_annotation(

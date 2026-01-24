@@ -7,6 +7,7 @@ from scipy.signal import find_peaks
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 import os
+import json
 
 
 class DNetPlot:
@@ -177,7 +178,7 @@ class DNetPlot:
         frame_to_time=100,
         pmf_last_nth_frames=20000,
         plot_formats=["png"],
-        res_id_label_shift=0,
+        res_id_label_shift={},
     ):
 
         pKa_color = "#227351"
@@ -193,6 +194,13 @@ class DNetPlot:
         substates_per_edge = []
 
         for graph_node in self.graph_nodes:
+
+            res_id_offset = (
+                int(res_id_label_shift[graph_node.split("-")[0]])
+                if graph_node.split("-")[0] in res_id_label_shift.keys()
+                else 0
+            )
+
             graph_node = ("-").join(graph_node.split("-")[0:3])
             total_number_of_states = 0
 
@@ -251,7 +259,7 @@ class DNetPlot:
                 )
                 ax[row, 0] = self._ax_util(
                     ax[0, 0],
-                    title=self._shift_resid_index(pKa_column, res_id_label_shift),
+                    title=self._shift_resid_index(pKa_column, res_id_offset),
                     xlabel="Time (ns)",
                     ylabel="pKa",
                 )
@@ -299,7 +307,7 @@ class DNetPlot:
             )
             ax[row, 0] = self._ax_util(
                 ax[row, 0],
-                title=f"total # of waters within 3.5 Å of {self._shift_resid_index(graph_node, res_id_label_shift)}",
+                title=f"total # of waters within 3.5 Å of {self._shift_resid_index(graph_node, res_id_offset)}",
                 xlabel="Time (ns)",
                 ylabel="#waters",
                 only_integers=True,
@@ -355,7 +363,7 @@ class DNetPlot:
                 )
                 ax[x, 0] = self._ax_util(
                     ax[x, 0],
-                    title=f"# of waters within 3.5 Å of {self._shift_resid_index(wat_col, res_id_label_shift)}",
+                    title=f"# of waters within 3.5 Å of {self._shift_resid_index(wat_col, res_id_offset)}",
                     xlabel="Time (ns)",
                     ylabel="#waters",
                     only_integers=True,
@@ -418,14 +426,14 @@ class DNetPlot:
                 )
                 ax[x, 0] = self._ax_util(
                     ax[x, 0],
-                    title=self._shift_resid_index(dist_col, res_id_label_shift),
+                    title=self._shift_resid_index(dist_col, res_id_offset),
                     xlabel="Time (ns)",
                     ylabel="Distance (Å)",
                 )
 
                 # in case .txt format is requested
                 # H_bond_df = pd.DataFrame(data={'time': self.distances.index / frame_to_time, 'distance': self.distances[og_column_name]})
-                # H_bond_df.to_csv(Path(self.plot_folder, f"H_bond_distance_time_series_{self.sim_name}_{self._shift_resid_index(dist_col.replace(' - ', '__'), res_id_label_shift)}.txt"), sep='\t', index=False)
+                # H_bond_df.to_csv(Path(self.plot_folder, f"H_bond_distance_time_series_{self.sim_name}_{self._shift_resid_index(dist_col.replace(' - ', '__'), res_id_offset)}.txt"), sep='\t', index=False)
 
                 ax[x, 1].hist(
                     self.distances[og_column_name],
@@ -483,7 +491,7 @@ class DNetPlot:
                 pmfs.to_csv(
                     Path(
                         self.plot_folder,
-                        f"PMF_{self.sim_name}_{self._shift_resid_index(dist_col.replace(' - ', '__'), res_id_label_shift)}.csv",
+                        f"PMF_{self.sim_name}_{self._shift_resid_index(dist_col.replace(' - ', '__'), res_id_offset)}.csv",
                     )
                 )
 
@@ -491,7 +499,7 @@ class DNetPlot:
                 # pmfs.to_csv(
                 #     Path(
                 #         self.plot_folder,
-                #         f"PMF_{self.sim_name}_{self._shift_resid_index(dist_col.replace(' - ', '__'), res_id_label_shift)}.txt",), sep='\t', index=False
+                #         f"PMF_{self.sim_name}_{self._shift_resid_index(dist_col.replace(' - ', '__'), res_id_offset)}.txt",), sep='\t', index=False
                 # )
 
                 ax[x, 3].plot(PMF, bin_centers, color=dist_color, linewidth=2)
@@ -521,7 +529,7 @@ class DNetPlot:
 
             # print("total_number_of_states", total_number_of_states)
             fig.suptitle(
-                self._shift_resid_index(graph_node, res_id_label_shift),
+                self._shift_resid_index(graph_node, res_id_offset),
                 fontsize=text_fs * 1.2,
             )
             fig.tight_layout(rect=[0, 0, 1, 0.97])
@@ -530,7 +538,7 @@ class DNetPlot:
                 fig.savefig(
                     Path(
                         self.plot_folder,
-                        f"{self.sim_name}_{self._shift_resid_index(graph_node, res_id_label_shift)}_dist_combined.{img_format}",
+                        f"{self.sim_name}_{self._shift_resid_index(graph_node, res_id_offset)}_dist_combined.{img_format}",
                     ),
                     format=img_format,
                 )
@@ -638,9 +646,9 @@ def main():
 
     parser.add_argument(
         "--res_id_label_shift",
-        default=0,
-        help="",
-        type=int,
+        default={},
+        type=json.loads,
+        help='Shift residue ID labels by a given offset. Please provide a value in a json format with an offset per segment e.g: {"PROA": 12, "PROB": 8}',
     )
     args = parser.parse_args()
 
@@ -678,7 +686,7 @@ def main():
         frame_to_time=args.frame_to_time,
         pmf_last_nth_frames=args.pmf_last_nth_frames,
         plot_formats=ast.literal_eval(args.plot_formats),
-        res_id_label_shift=args.res_id_label_shift,
+        res_id_label_shift=dict(args.res_id_label_shift),
     )
 
 
