@@ -338,7 +338,7 @@ class DNetGraphs:
                 n not in self.node_positions.keys()
                 or n.split("-")[1] in _hf.water_types
             ):
-                chain_id, res_name, res_id = _hf.get_node_name_pats(n)
+                chain_id, res_name, res_id, atom = _hf.get_node_name_pats(n)
                 coords = (
                     self.graph_coord_object["selected_atoms"]
                     .select_atoms("resid " + res_id)
@@ -413,6 +413,7 @@ class DNetGraphs:
                 x = [edge_line[0][0], edge_line[1][0]]
                 y = [edge_line[0][1], edge_line[1][1]]
 
+                val = None
                 if e in edge_value_dict.keys():
                     val = edge_value_dict[e]
                     color = edge_colors.to_rgba(val)
@@ -424,33 +425,57 @@ class DNetGraphs:
                 else:
                     color = self.plot_parameters["graph_color"]
 
+                interp_x = np.linspace(x[0], x[1], num=7)
+                interp_y = np.linspace(y[0], y[1], num=7)
+
+                edge_index = list(graph.edges).index(e)
+                avg_water_labels = np.round(waters[edge_index], 1)
+                occupancy_labels = int(occ_per_wire[edge_index] * 100)
+
+                repeated_customdata = [[avg_water_labels, occupancy_labels, val]] * 7
+
+                chain_id1, res_name1, res_id1, atom1 = _hf.get_node_name_pats(e0)
+                res_id_offset1 = (
+                    int(res_id_label_shift[chain_id1])
+                    if chain_id1 in res_id_label_shift.keys()
+                    else 0
+                )
+                chain_id2, res_name2, res_id2, atom2 = _hf.get_node_name_pats(e1)
+                res_id_offset2 = (
+                    int(res_id_label_shift[chain_id2])
+                    if chain_id2 in res_id_label_shift.keys()
+                    else 0
+                )
+                hover_text = (
+                    f"{chain_id1}-{res_name1}-{int(res_id1) + res_id_offset1}{atom1} and {chain_id2}-{res_name2}-{int(res_id2) + res_id_offset2}{atom2}<br>"
+                    "Avg. water in bridge: %{customdata[0]:.1f}<br>"
+                    "Occupancy: %{customdata[1]}%<br>"
+                )
+                if val:
+                    hover_text += "Edge color value: %{customdata[2]}<br>"
+
+                hover_text += "<extra></extra>"
+
                 fig.add_trace(
                     go.Scatter(
-                        x=x,
-                        y=y,
-                        mode="lines",
+                        x=interp_x,
+                        y=interp_y,
+                        mode="lines+markers",
                         line=dict(
                             color=color, width=self.plot_parameters["edge_width"]
                         ),
+                        marker=dict(
+                            size=10,
+                            color="rgba(0,0,0,0)",  # Completely transparent (alpha = 0)
+                        ),
+                        customdata=repeated_customdata,
+                        hovertemplate=hover_text,
                         showlegend=False,
-                        # hovermode='x unified',
-                        # hoverdistance=100,
-                        # hovertemplate=(
-                        #     f"{e0} {e1}<br>"
-                        #     "Avg. water in bridge: %{customdata[0]:.1f}<br>"
-                        #     "Occupancy: %{customdata[1]}%<br>"
-                        # ),
-                        # customdata=[
-                        #     [np.round(waters[list(graph.edges).index(e)], 1),
-                        #      int(occ_per_wire[list(graph.edges).index(e)] * 100)]
-                        # ],
                     )
                 )
-
-                # fig.update_layout(
-                #     # hovermode="x unified",
-                #     hoverdistance=100  # Increase sensitivity
-                # )
+                fig.update_layout(
+                    hovermode="closest", hoverdistance=20  # Sensitivity in pixels
+                )
 
                 if label_edges:
                     mid_x = x[0] + (x[1] - x[0]) / 2
@@ -459,25 +484,29 @@ class DNetGraphs:
                     fig.add_annotation(
                         x=mid_x,
                         y=mid_y,
-                        text=str(np.round(waters[list(graph.edges).index(e)], 1)),
+                        text=str(np.round(waters[edge_index], 1)),
                         showarrow=False,
                         font=dict(
                             color="indianred",
                             size=self.plot_parameters["edge_label_size"],
                         ),
+                        xref="x",
+                        yref="y",
+                        yshift=5,
                     )
                     if occupancy:
                         fig.add_annotation(
                             x=mid_x,
-                            y=mid_y - 1.0,  # vertical offset
-                            text=str(
-                                int(occ_per_wire[list(graph.edges).index(e)] * 100)
-                            ),
+                            y=mid_y,
+                            text=str(int(occ_per_wire[edge_index] * 100)),
                             showarrow=False,
                             font=dict(
                                 color="green",
                                 size=self.plot_parameters["edge_label_size"],
                             ),
+                            xref="x",
+                            yref="y",
+                            yshift=-10,
                         )
 
         color_info = {}
@@ -553,11 +582,17 @@ class DNetGraphs:
         ]
         for n, values in node_pca_pos.items():
             if n in graph.nodes:
+                chain_id, res_name, res_id, atom = _hf.get_node_name_pats(n)
                 if self.multi_segments:
                     marker_shape = markers[self.multi_segments.index(n.split("-")[0])]
                 else:
-                    marker_shape = "o"
+                    marker_shape = "circle"
 
+                res_id_offset = (
+                    int(res_id_label_shift[chain_id])
+                    if chain_id in res_id_label_shift.keys()
+                    else 0
+                )
                 if n.split("-")[1] in _hf.water_types:
                     fig.add_trace(
                         go.Scatter(
@@ -592,7 +627,12 @@ class DNetGraphs:
                                 color=color,
                                 line=dict(color=self.plot_parameters["graph_color"]),
                             ),
+                            name="",
                             showlegend=False,
+                            hovertemplate=(
+                                f"{chain_id}-{_hf.amino_d[res_name]}{int(res_id) + res_id_offset}{atom}<br>"
+                                f"{color_info[n] if n in color_info.keys() else ''}<br>"
+                            ),
                         )
                     )
 
@@ -614,7 +654,12 @@ class DNetGraphs:
                                 color=color,
                                 line=dict(color=self.plot_parameters["graph_color"]),
                             ),
+                            name="",
                             showlegend=False,
+                            hovertemplate=(
+                                f"{chain_id}-{_hf.amino_d[res_name]}{int(res_id) + res_id_offset}{atom}<br>"
+                                f"{color_info[n] if n in color_info.keys() else ''}<br>"
+                            ),
                         )
                     )
 
@@ -625,7 +670,7 @@ class DNetGraphs:
                 n = _hf.get_node_name(n)
                 if n in node_pca_pos.keys():
                     values = node_pca_pos[n]
-                    chain_id, res_name, res_id = _hf.get_node_name_pats(n)
+                    chain_id, res_name, res_id, atom = _hf.get_node_name_pats(n)
 
                     res_id_offset = (
                         int(res_id_label_shift[chain_id])
@@ -637,16 +682,19 @@ class DNetGraphs:
 
                     elif res_name in _hf.amino_d.keys():
                         res_label = (
-                            f"{chain_id}-{_hf.amino_d[res_name]}{int(res_id) + res_id_offset}"
+                            f"{chain_id}-{_hf.amino_d[res_name]}{int(res_id) + res_id_offset}{atom}"
                             if self.plot_parameters["show_chain_label"]
-                            else f"{_hf.amino_d[res_name]}{int(res_id) + res_id_offset}"
+                            else f"{_hf.amino_d[res_name]}{int(res_id) + res_id_offset}{atom}"
                         )
 
                         fig.add_annotation(
-                            x=values[0] + 0.2,
-                            y=values[1] - 0.26,
+                            x=values[0],
+                            y=values[1],
+                            yshift=-15,
                             text=res_label,
                             showarrow=False,
+                            xref="x",
+                            yref="y",
                             font=dict(
                                 size=self.plot_parameters["node_label_size"],
                                 color="black",
@@ -655,16 +703,19 @@ class DNetGraphs:
 
                     else:
                         res_label = (
-                            f"{chain_id}-{res_name}{int(res_id) + res_id_offset}"
+                            f"{chain_id}-{res_name}{int(res_id) + res_id_offset}{atom}"
                             if self.plot_parameters["show_chain_label"]
-                            else f"{res_name}{int(res_id) + res_id_offset}"
+                            else f"{res_name}{int(res_id) + res_id_offset}{atom}"
                         )
 
                         fig.add_annotation(
-                            x=values[0] + 0.2,
-                            y=values[1] - 0.25,
+                            x=values[0],
+                            y=values[1],
+                            yshift=-15,
                             text=res_label,
                             showarrow=False,
+                            xref="x",
+                            yref="y",
                             font=dict(
                                 size=self.plot_parameters["node_label_size"],
                                 color=self.plot_parameters["non_prot_color"],

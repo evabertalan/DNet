@@ -183,10 +183,17 @@ def get_node_name_pats(node, with_group=False):
             node.split("-")[0],
             node.split("-")[1],
             str(int(node.split("-")[2])),
-            node.split("-")[3],
+            f'-{node.split("-")[3]}',
+        )
+    elif len(node.split("-")) == 4:
+        return (
+            node.split("-")[0],
+            node.split("-")[1],
+            str(int(node.split("-")[2])),
+            f'-{node.split("-")[3]}',
         )
     else:
-        return node.split("-")[0], node.split("-")[1], str(int(node.split("-")[2]))
+        return node.split("-")[0], node.split("-")[1], str(int(node.split("-")[2])), ""
 
 
 def get_edge_params(wba, edges):
