@@ -2,7 +2,6 @@ import warnings
 
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="MDAnalysis.*")
 
-
 import helperfunctions as _hf
 import copy
 import numpy as np
@@ -429,18 +428,29 @@ class DNetGraphs:
                     go.Scatter(
                         x=x,
                         y=y,
-                        mode="lines+markers",
+                        mode="lines",
                         line=dict(
                             color=color, width=self.plot_parameters["edge_width"]
                         ),
-                        marker=dict(
-                            size=self.plot_parameters["node_size"] * 0.01,
-                            color=self.plot_parameters["graph_color"],
-                            line=dict(color=self.plot_parameters["graph_color"]),
-                        ),
                         showlegend=False,
+                        # hovermode='x unified',
+                        # hoverdistance=100,
+                        # hovertemplate=(
+                        #     f"{e0} {e1}<br>"
+                        #     "Avg. water in bridge: %{customdata[0]:.1f}<br>"
+                        #     "Occupancy: %{customdata[1]}%<br>"
+                        # ),
+                        # customdata=[
+                        #     [np.round(waters[list(graph.edges).index(e)], 1),
+                        #      int(occ_per_wire[list(graph.edges).index(e)] * 100)]
+                        # ],
                     )
                 )
+
+                # fig.update_layout(
+                #     # hovermode="x unified",
+                #     hoverdistance=100  # Increase sensitivity
+                # )
 
                 if label_edges:
                     mid_x = x[0] + (x[1] - x[0]) / 2
@@ -519,7 +529,28 @@ class DNetGraphs:
                         f"The content of {self.sim_name}_data.txt is invalid or no residues found in the file matching the selection for node coloring"
                     )
 
-        markers = ["o", ",", "v", "p", "D", "*", "h", "H", "X"]
+        markers = [
+            "circle",
+            "square",
+            "diamond",
+            "cross",
+            "star",
+            "triangle-up",
+            "pentagon",
+            "hexagon",
+            "triangle-down",
+            "triangle-left",
+            "triangle-right",
+            "circle-open",
+            "square-open",
+            "diamond-open",
+            "pentagon-open" "triangle-up-open",
+            "triangle-down-open",
+            "triangle-left-open",
+            "triangle-right-open",
+            "star-open",
+            "hexagon-open",
+        ]
         for n, values in node_pca_pos.items():
             if n in graph.nodes:
                 if self.multi_segments:
@@ -534,7 +565,7 @@ class DNetGraphs:
                             y=[values[1]],
                             mode="markers",
                             marker=dict(
-                                # symbol=marker_shape,
+                                symbol=marker_shape,
                                 size=self.plot_parameters["node_size"] * 0.7,
                                 color=self.plot_parameters["water_node_color"],
                             ),
@@ -556,7 +587,7 @@ class DNetGraphs:
                             y=[values[1]],
                             mode="markers",
                             marker=dict(
-                                # symbol=marker_shape,
+                                symbol=marker_shape,
                                 size=self.plot_parameters["node_size"],
                                 color=color,
                                 line=dict(color=self.plot_parameters["graph_color"]),
@@ -578,7 +609,7 @@ class DNetGraphs:
                             y=[values[1]],
                             mode="markers",
                             marker=dict(
-                                # symbol=marker_shape,
+                                symbol=marker_shape,
                                 size=self.plot_parameters["node_size"],
                                 color=color,
                                 line=dict(color=self.plot_parameters["graph_color"]),

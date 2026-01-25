@@ -66,7 +66,7 @@ def get_plot_parameters(plot_parameters):
         "node_size": (
             plot_parameters["node_size"]
             if "node_size" in plot_parameters.keys()
-            else 20
+            else 15
         ),
         "graph_color": (
             plot_parameters["graph_color"]
