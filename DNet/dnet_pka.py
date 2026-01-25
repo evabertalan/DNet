@@ -80,10 +80,7 @@ class DNetPKa:
             self.pkas = self.pkatraj.results.pkas.sort_values(by="frame")
 
             # to handle duplicated column in the N and C terminus in case the residue has an other titratable atom
-            if self.pkas.columns.duplicated()[1]:
-                self.pkas = self.pkas.iloc[:, 1:]
-            if self.pkas.columns.duplicated()[-1]:
-                self.pkas = self.pkas.iloc[:, :-1]
+            self.pkas = self.pkas.loc[:, ~self.pkas.columns.duplicated()].copy()
 
         except Exception as e:
             print(f"Error computing pKa for trajectory: {e}")
