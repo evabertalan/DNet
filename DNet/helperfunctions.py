@@ -7,12 +7,11 @@ import numpy as np
 import networkx as nx
 from sklearn.decomposition import PCA
 from matplotlib import cm
-from matplotlib.colors import LinearSegmentedColormap, Normalize, BoundaryNorm
-from matplotlib.cm import ScalarMappable
 import matplotlib as mpl
 from pathlib import Path
 import ast
 import plotly.express as px
+import plotly.colors
 
 
 warnings.filterwarnings("ignore")
@@ -441,52 +440,60 @@ def calculate_connected_compontents_coordinates(
 
 
 def get_color_map(color_info, color_map="viridis", center=None):
-    cmap = cm.get_cmap(color_map, len(color_info))
+    if not color_info:
+        return {}, color_map, None
+
     _vals = np.array(list(color_info.values()), dtype=float)
-    if len(color_info):
-        if len(color_info) > 1:
-            scaled_values = (_vals - _vals.min()) / (_vals.max() - _vals.min())
-            value_colors = {
-                key: cmap(scaled_values[i])
-                for i, (key, values) in enumerate(color_info.items())
-            }
-        else:
-            value_colors = {
-                key: cmap(_vals[i])
-                for i, (key, values) in enumerate(color_info.items())
-            }
-        if center:
-            max_val = np.max([np.abs(_vals.min()), np.abs(_vals.max())])
-            norm = mpl.colors.Normalize(vmin=-1 * max_val, vmax=max_val)
-        else:
-            norm = mpl.colors.Normalize(vmin=_vals.min(), vmax=_vals.max())
-        return value_colors, cmap, norm
+    vmin, vmax = _vals.min(), _vals.max()
+
+    if center is not None:
+        max_dist = np.max(np.abs(_vals - center))
+        cmin, cmax = center - max_dist, center + max_dist
     else:
-        return {}, cmap, None
+        cmin, cmax = vmin, vmax
+
+    if cmax == cmin:
+        scaled_vals = np.zeros_like(_vals)
+    else:
+        scaled_vals = (_vals - cmin) / (cmax - cmin)
+
+    sampled_colors = plotly.colors.sample_colorscale(color_map, scaled_vals.tolist())
+
+    value_colors = {key: sampled_colors[i] for i, key in enumerate(color_info.keys())}
+    return value_colors, color_map, (cmin, cmax)
 
 
 def get_edge_color_map(values):
-    isint = all(isinstance(x, int) for x in values)
+    isint = all(isinstance(x, (int, np.integer)) for x in values)
+    vmin, vmax = min(values), max(values)
+
     if isint:
-        low_color = "#C0C0C0"  # light blue
-        high_color = "#002F6C"  # dark blue
+        low_color = "#C0C0C0"
+        high_color = "#002F6C"
 
-        # low_color = "#D6E6FF"  # light blue
-        # high_color = "#1C189C"  # dark blue
-        unique_values = np.arange(min(np.unique(values)), max(np.unique(values)) + 1)
-        cmap = LinearSegmentedColormap.from_list(
-            "custom", [low_color, high_color], N=len(unique_values)
+        unique_values = np.arange(vmin, vmax + 1)
+        n_colors = len(unique_values)
+
+        colors = plotly.colors.n_colors(
+            plotly.colors.hex_to_rgb(low_color),
+            plotly.colors.hex_to_rgb(high_color),
+            n_colors,
+            colortype="rgb",
         )
-        unique_values = np.insert(unique_values, len(unique_values), max(values) + 1)
-        norm = BoundaryNorm(unique_values, cmap.N)
-    else:
-        low_color = "#E5E5E5"  # light gray
-        high_color = "#424242"  # dark gray
-        norm = Normalize(vmin=min(values), vmax=max(values))
-        cmap = LinearSegmentedColormap.from_list("custom", [low_color, high_color])
 
-    sm = ScalarMappable(cmap=cmap, norm=norm)
-    return cmap, norm, sm
+        custom_colorscale = []
+        for i in range(n_colors):
+            start = i / n_colors
+            end = (i + 1) / n_colors
+            custom_colorscale.extend([[start, colors[i]], [end, colors[i]]])
+
+        vmax = vmax + 1
+    else:
+        low_color = "#E5E5E5"
+        high_color = "#424242"
+        custom_colorscale = [[0, low_color], [1, high_color]]
+
+    return custom_colorscale, vmin, vmax
 
 
 def get_water_coordinates(protein_chain, res_index):

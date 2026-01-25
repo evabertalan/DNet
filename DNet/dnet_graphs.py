@@ -470,6 +470,7 @@ class DNetGraphs:
                         ),
                         customdata=repeated_customdata,
                         hovertemplate=hover_text,
+                        hoverlabel=dict(bgcolor="rgba(211, 211, 211, 0.3)"),
                         showlegend=False,
                     )
                 )
@@ -633,6 +634,7 @@ class DNetGraphs:
                                 f"{chain_id}-{_hf.amino_d[res_name]}{int(res_id) + res_id_offset}{atom}<br>"
                                 f"{color_info[n] if n in color_info.keys() else ''}<br>"
                             ),
+                            hoverlabel=dict(bgcolor="rgba(211, 211, 211, 0.3)"),
                         )
                     )
 
@@ -660,6 +662,7 @@ class DNetGraphs:
                                 f"{chain_id}-{_hf.amino_d[res_name]}{int(res_id) + res_id_offset}{atom}<br>"
                                 f"{color_info[n] if n in color_info.keys() else ''}<br>"
                             ),
+                            hoverlabel=dict(bgcolor="rgba(211, 211, 211, 0.3)"),
                         )
                     )
 
@@ -723,19 +726,47 @@ class DNetGraphs:
                         )
 
         if color_info or color_edge_by_occupnacy or color_edges_by:
-            cbar = fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax)
-            if all(isinstance(x, np.integer) for x in cbar.get_ticks()):
-                tick_centers = (norm.boundaries[:-1] + norm.boundaries[1:]) / 2
-                cbar.ax.set_yticks(tick_centers)
-                cbar.ax.set_yticklabels(norm.boundaries[:-1])
+            if color_info:
+                z_vals = list(color_info.values())
+            elif color_edge_by_occupnacy:
+                z_vals = np.linspace(0.1, 1, 10)
+            elif color_edges_by:
+                z_vals = list(edge_value_dict.values())
+            fig.add_trace(
+                go.Heatmap(
+                    z=z_vals,
+                    colorscale=cmap,
+                    colorbar=dict(
+                        title=dict(
+                            text=color_bar_label,
+                            font=dict(
+                                size=self.plot_parameters["plot_label_fontsize"] - 3
+                            ),
+                        ),
+                        tickfont=dict(
+                            size=self.plot_parameters["plot_tick_fontsize"] - 3
+                        ),
+                    ),
+                )
+            )
 
-            cbar.ax.tick_params(
-                labelsize=self.plot_parameters["plot_tick_fontsize"] - 3
-            )
-            cbar.set_label(
-                label=color_bar_label,
-                size=self.plot_parameters["plot_label_fontsize"] - 3,
-            )
+            # Centering logic
+            # tickmode="array",
+            # tickvals=(norm[0] + norm[1]) / 2,
+            # ticktext=[str(val) for val in color_info.values()],
+            # cbar = fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax)
+            # if all(isinstance(x, np.integer) for x in cbar.get_ticks()):
+            #     tick_centers = (norm.boundaries[:-1] + norm.boundaries[1:]) / 2
+            #     cbar.ax.set_yticks(tick_centers)
+            #     cbar.ax.set_yticklabels(norm.boundaries[:-1])
+
+            # cbar.ax.tick_params(
+            #     labelsize=self.plot_parameters["plot_tick_fontsize"] - 3
+            # )
+            # cbar.set_label(
+            #     label=color_bar_label,
+            #     size=self.plot_parameters["plot_label_fontsize"] - 3,
+            # )
 
         # px.tight_layout()
         is_label = "_labeled" if label_nodes else ""
@@ -1120,8 +1151,8 @@ def main():
 
     parser.add_argument(
         "--node_color_map",
-        default="coolwarm_r",
-        help="Colormap used for node coloring (default: 'coolwarm_r').",
+        default="RdBu",
+        help="Colormap used for node coloring (default: 'RdBu'). Use colormaps available in plotly https://plotly.com/python/builtin-colorscales/",
     )
 
     parser.add_argument(
