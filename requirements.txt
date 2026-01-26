@@ -32,3 +32,5 @@ threadpoolctl<=3.5.0
 tqdm<=4.67.1
 tzdata<=2025.1
 waterdynamics<=1.2.0
+plotly<=6.5.2
+kaleido<=1.2.0
