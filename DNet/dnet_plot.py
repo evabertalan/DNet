@@ -204,7 +204,7 @@ class DNetPlot:
             graph_node = ("-").join(graph_node.split("-")[0:3])
             total_number_of_states = 0
 
-            if self.pKas and graph_node in self.pKas.columns:
+            if self.pKas is not None and graph_node in self.pKas.columns:
                 pKa_column = graph_node
             else:
                 pKa_column = None
