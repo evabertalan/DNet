@@ -11,6 +11,7 @@ import mdhbond as mdh
 import plotly.express as px
 
 import matplotlib as mpl
+import plotly
 from pathlib import Path
 import os
 import argparse
@@ -380,7 +381,7 @@ class DNetGraphs:
 
         self.logger.debug(f"Creating water wire graph for {self.sim_name}")
         fig = _hf.create_plot(
-            title=f"""Water wire graph of structure {self.sim_name}<br>Selection: {self.selection[:-15]}""",
+            title=f"""Water wire graph of {self.sim_name}<br>Selection: {self.selection[:-15]}""",
             xlabel=xlabel,
             ylabel=ylabel,
             plot_parameters=self.plot_parameters,
@@ -394,15 +395,13 @@ class DNetGraphs:
             edge_value_dict = {
                 k: v for k, v in edge_value_dict.items() if k in graph.edges
             }
-            cmap, norm, edge_colors = _hf.get_edge_color_map(
-                list(edge_value_dict.values())
-            )
+            cmap, vmin, vmax = _hf.get_edge_color_map(list(edge_value_dict.values()))
             color_bar_label = "Edge value"
 
         elif color_edge_by_occupnacy:
             values = np.linspace(0.1, 1, 10)
-            cmap, norm, occupany_colors = _hf.get_edge_color_map(values)
-            color_bar_label = "H-bond occupancy"
+            cmap, vmin, vmax = _hf.get_edge_color_map(values)
+            color_bar_label = "Occupancy"
 
         waters, occ_per_wire, _ = _hf.get_edge_params(wba, graph.edges)
         for e in graph.edges:
@@ -416,11 +415,21 @@ class DNetGraphs:
                 val = None
                 if e in edge_value_dict.keys():
                     val = edge_value_dict[e]
-                    color = edge_colors.to_rgba(val)
+                    color = plotly.colors.find_intermediate_color(
+                        cmap[0][1],
+                        cmap[-1][1],
+                        (val - vmin) / (vmax - vmin),
+                        colortype="rgb",
+                    )
 
                 elif color_edge_by_occupnacy:
                     occ = occ_per_wire[list(graph.edges).index(e)]
-                    color = occupany_colors.to_rgba(occ)
+                    color = plotly.colors.find_intermediate_color(
+                        cmap[0][1],
+                        cmap[-1][1],
+                        (occ - vmin) / (vmax - vmin),
+                        colortype="rgb",
+                    )
 
                 else:
                     color = self.plot_parameters["graph_color"]
@@ -532,7 +541,7 @@ class DNetGraphs:
                         color_info, color_map=node_color_map
                     )
                     self.logger.info(f"Color {self.sim_name} by pKa values{lab}.")
-                    color_bar_label = "pKa value"
+                    color_bar_label = "pKa"
                 else:
                     self.logger.info(
                         f"{self.sim_name}.propka does not contain the selected residues. Please update the Residues to color!"
@@ -550,7 +559,7 @@ class DNetGraphs:
                     value_colors, cmap, norm = _hf.get_color_map(
                         color_info, color_map=node_color_map
                     )
-                    color_bar_label = "Amino acid data value"
+                    color_bar_label = "Custom data"
                     self.logger.info(
                         f"Color {self.sim_name} by values from external data file{lab}."
                     )
@@ -627,6 +636,7 @@ class DNetGraphs:
                                 size=self.plot_parameters["node_size"],
                                 color=color,
                                 line=dict(color=self.plot_parameters["graph_color"]),
+                                coloraxis="coloraxis",
                             ),
                             name="",
                             showlegend=False,
@@ -655,6 +665,7 @@ class DNetGraphs:
                                 size=self.plot_parameters["node_size"],
                                 color=color,
                                 line=dict(color=self.plot_parameters["graph_color"]),
+                                coloraxis="coloraxis",
                             ),
                             name="",
                             showlegend=False,
@@ -727,48 +738,39 @@ class DNetGraphs:
 
         if color_info or color_edge_by_occupnacy or color_edges_by:
             if color_info:
-                z_vals = list(color_info.values())
+                z_vals = [float(i) for i in color_info.values()]
             elif color_edge_by_occupnacy:
                 z_vals = np.linspace(0.1, 1, 10)
             elif color_edges_by:
-                z_vals = list(edge_value_dict.values())
+                z_vals = [float(i) for i in edge_value_dict.values()]
+
             fig.add_trace(
-                go.Heatmap(
-                    z=z_vals,
-                    colorscale=cmap,
-                    colorbar=dict(
-                        title=dict(
-                            text=color_bar_label,
-                            font=dict(
-                                size=self.plot_parameters["plot_label_fontsize"] - 3
+                go.Scatter(
+                    x=[None],
+                    y=[None],
+                    mode="markers",
+                    marker=dict(
+                        color=z_vals,
+                        colorscale=cmap,
+                        showscale=True,
+                        colorbar=dict(
+                            title=dict(
+                                text=color_bar_label,
+                                font=dict(
+                                    size=self.plot_parameters["plot_label_fontsize"]
+                                ),
+                            ),
+                            tickfont=dict(
+                                size=self.plot_parameters["plot_tick_fontsize"] - 3
                             ),
                         ),
-                        tickfont=dict(
-                            size=self.plot_parameters["plot_tick_fontsize"] - 3
-                        ),
+                        size=0,
                     ),
+                    hoverinfo="skip",
+                    showlegend=False,
                 )
             )
 
-            # Centering logic
-            # tickmode="array",
-            # tickvals=(norm[0] + norm[1]) / 2,
-            # ticktext=[str(val) for val in color_info.values()],
-            # cbar = fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax)
-            # if all(isinstance(x, np.integer) for x in cbar.get_ticks()):
-            #     tick_centers = (norm.boundaries[:-1] + norm.boundaries[1:]) / 2
-            #     cbar.ax.set_yticks(tick_centers)
-            #     cbar.ax.set_yticklabels(norm.boundaries[:-1])
-
-            # cbar.ax.tick_params(
-            #     labelsize=self.plot_parameters["plot_tick_fontsize"] - 3
-            # )
-            # cbar.set_label(
-            #     label=color_bar_label,
-            #     size=self.plot_parameters["plot_label_fontsize"] - 3,
-            # )
-
-        # px.tight_layout()
         is_label = "_labeled" if label_nodes else ""
         is_propka = "_pKa_color" if color_info and color_propka else ""
         is_conservation = "_data_color" if color_info and color_data else ""

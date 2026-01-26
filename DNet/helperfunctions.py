@@ -13,7 +13,6 @@ import ast
 import plotly.express as px
 import plotly.colors
 
-
 warnings.filterwarnings("ignore")
 
 amino_d = {
@@ -478,8 +477,8 @@ def get_edge_color_map(values):
             plotly.colors.hex_to_rgb(low_color),
             plotly.colors.hex_to_rgb(high_color),
             n_colors,
-            colortype="rgb",
         )
+        colors = [plotly.colors.label_rgb(c) for c in colors]
 
         custom_colorscale = []
         for i in range(n_colors):
@@ -491,7 +490,10 @@ def get_edge_color_map(values):
     else:
         low_color = "#E5E5E5"
         high_color = "#424242"
-        custom_colorscale = [[0, low_color], [1, high_color]]
+        custom_colorscale = [
+            [0, plotly.colors.label_rgb(plotly.colors.hex_to_rgb(low_color))],
+            [1, plotly.colors.label_rgb(plotly.colors.hex_to_rgb(high_color))],
+        ]
 
     return custom_colorscale, vmin, vmax
 
