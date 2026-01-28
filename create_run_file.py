@@ -138,6 +138,13 @@ if dcd:
 else:
     st.caption("*No DCD files are selected.*")
 
+wrap_dcc = st.checkbox(
+    "PBC wrap the trajectories",
+    value=True,
+    help="Apply periodic boundary condition wrapping to keep molecules inside the simulation box. Default is true.",
+)
+
+
 selection = st.text_input(
     "Selection to perform the analysis on, in a form of an MDAnalysis selection sting. ",
     "protein",
@@ -195,11 +202,11 @@ c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
 with c1:
     distance_off = c1.number_input(
         "Distance cut off",
-        value=None,
+        value=3.5,
         step=0.1,
         min_value=0.1,
-        max_value=15,
-        help="Last frame index for trajectory analysis. If not provided, processes until the last frame. It can take a negative value, e.g: -2000 reads the last 2000 frames of the trajectory.",
+        max_value=15.0,
+        help="The distance criterion for the  H-bond search, measured between the heavy atoms. The default value is 3.5Å.",
     )
 
 with c2:
@@ -209,20 +216,20 @@ with c2:
         step=1,
         min_value=0,
         max_value=180,
-        help="Last frame index for trajectory analysis. If not provided, processes until the last frame. It can take a negative value, e.g: -2000 reads the last 2000 frames of the trajectory.",
+        help="Threshold value for the angle formed by the acceptor heavy atom, the H atom, and the donor heavy atom. The default value is 60°.",
     )
 
 with c3:
     occupany = c3.number_input(
         "Min H-bond occupancy",
-        0.1,
+        value=0.1,
         step=0.01,
-        min_value=0,
-        max_value=1,
-        help="Step size for reading the trajectory frames. For example if its set to 10, only  every 10th frame is read, which reduces the computation time.",
+        min_value=0.01,
+        max_value=1.0,
+        help="Minimum H-bond occupancy required to include an edge in the graph (default: 0.1, which means 10% occupancy).",
     )
 with c4:
-    max_water = c1.number_input(
+    max_water = c4.number_input(
         "Max number of waters allowed in the bridge",
         value=3,
         step=1,
@@ -230,6 +237,129 @@ with c4:
         max_value=5,
         help="Maximum number of water molecules allowed in the water wire connections (default: 3). When it is set to 0, only direct H-bonds are considered.",
     )
+
+c1, c2 = st.columns([1, 1])
+
+donors = c1.text_input(
+    "Additional Donors",
+    "",
+    help="List of additional hydrogen bond donor atoms separated by a `,` e.g: `N, S`.",
+)
+donors = str([atom.strip() for atom in donors.split(",") if atom.strip()])
+
+
+acceptors = c2.text_input(
+    "Additional Acceptors",
+    "",
+    help="List of additional hydrogen bond donor atoms separated by a `,` e.g: `O, F`.",
+)
+acceptors = str([atom.strip() for atom in acceptors.split(",") if atom.strip()])
+
+
+# c1, c2, c3 = st.columns([1, 1, 1])
+# with c1:
+no_label_plots = st.checkbox(
+    "Generate additional plots without the labels",
+    value=True,
+    help="Creates all the graph plots without the nodes and edges labels as well. Useful for preparation additional figures, where the graph nodes need to be re-labeled or only a few graph nodes need to be labeled.",
+)
+
+# with c2:
+dont_save_graph_objects = st.checkbox(
+    "Don't save large data objects from the calculation",
+    value=True,
+    help="Don't save the metadata and full graph objects of the calculations. Use this flag if there is not enough space for the calculation results or when the graph objects are not needed for further calculations or analysis.",
+)
+
+# with c3:
+collect_angles = st.checkbox(
+    "Collect H-bond angles for additional analysis later",
+    value=True,
+    help="Create a csv file with the angles of all donor-acceptor pairs that are within the set H-bond distance criterion in each frame.",
+)
+
+# res_id_label_shift
+shift_reid_labels = st.checkbox(
+    "Shift residue ID labels by a given offset",
+    help="One value per protein segment can to be provided.",
+    value=False,
+)
+
+if shift_reid_labels:
+    st.warning(
+        "Use it with caution! Residue ID labels will have an offset only on the plots. In the additional data files residues are numbered according to the structure file. For root and path search the start and nodes have to be given according to their numbering in the structure file."
+    )
+    res_id_label_shift_input = st.text_area(
+        "Enter segment_name: offset_value pairs (one per line). Example:  `PROA: 10`",
+        value="segment1: 10\nsegment2: 20",
+    )
+
+    res_id_label_shift = {}
+    lines = res_id_label_shift_input.split("\n")
+
+    for line in lines:
+        if ":" in line:
+            try:
+                key, val = line.split(":", 1)
+                key = key.strip()
+                val = int(val.strip())
+
+            except ValueError:
+                st.write(
+                    f"Skipping {line}. Incorrect format. Please provide in a format of `PROA: 10`"
+                )
+                continue
+
+
+with st.expander("Adjust Graph & Plot Visuals", expanded=True):
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.markdown("#### Sizes")
+        edge_w = st.number_input("Edge Width", min_value=1, value=2, step=1)
+        node_s = st.number_input("Node Size", min_value=1, value=15, step=1)
+        node_lbl_s = st.number_input("Node Label Size", min_value=1, value=15, step=1)
+        edge_lbl_s = st.number_input("Edge Label Size", min_value=1, value=15, step=1)
+
+    with col2:
+        st.markdown("#### Colors")
+        g_color = st.color_picker("Graph Color", "#808080")
+        # w_color = st.color_picker("Water Node Color", "#db5c5c")
+        d_color = st.color_picker("Difference Graph Color", "#129fe6")
+        np_color = st.color_picker("Color of Non-Protein Nodes", "#0000ff")
+
+    with col3:
+        st.markdown("#### Layout & Format")
+        title_fs = st.number_input("Title Font Size", min_value=1, value=30)
+        label_fs = st.number_input("Label Font Size", min_value=1, value=36)
+        tick_fs = st.number_input("Tick Font Size", min_value=1, value=33)
+        res = st.number_input("Resolution (DPI)", min_value=72, value=400)
+
+        f_width = st.number_input("Fig Width", min_value=1, value=15)
+        f_height = st.number_input("Fig Height", min_value=1, value=16)
+
+        fmts = st.multiselect(
+            "Export Formats", ["png", "eps", "pdf", "svg"], default=["png", "eps"]
+        )
+        show_chain = st.checkbox("Show Chain Label", value=False)
+
+plot_parameters = {
+    "edge_width": edge_w,
+    "node_label_size": node_lbl_s,
+    "edge_label_size": edge_lbl_s,
+    "node_size": node_s,
+    "graph_color": g_color,
+    # "water_node_color": w_color,
+    "difference_graph_color": d_color,
+    "non_prot_color": np_color,
+    "plot_title_fontsize": title_fs,
+    "plot_label_fontsize": label_fs,
+    "plot_tick_fontsize": tick_fs,
+    "plot_resolution": res,
+    "figsize": (f_width, f_height),
+    "formats": fmts,
+    "show_chain_label": show_chain,
+}
 
 
 t1, t2, t3, t4 = st.tabs(
@@ -336,6 +466,7 @@ env_params = {
     "output_folder": output_folder,
     "psf": psf,
     "dcd": dcd,
+    "wrap_dcc": wrap_dcc,
 }
 pka_params = {
     "run_pKa": run_pKa,
