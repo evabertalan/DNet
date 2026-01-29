@@ -200,7 +200,7 @@ st.info(
 c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
 
 with c1:
-    distance_off = c1.number_input(
+    distance_cut_off = c1.number_input(
         "Distance cut off",
         value=3.5,
         step=0.1,
@@ -311,7 +311,7 @@ if shift_reid_labels:
                 continue
 
 
-with st.expander("Adjust Graph & Plot Visuals", expanded=True):
+with st.expander("Adjust Graph Plot Visualization", expanded=True):
     col1, col2, col3 = st.columns(3)
 
     with col1:
@@ -365,9 +365,9 @@ plot_parameters = {
 t1, t2, t3, t4 = st.tabs(
     [
         "DNet-pKa",
-        "DNet-dist",
-        "DNet-plot",
-        "DNet-graphs",
+        "DNet-Dist",
+        "DNet-Plot",
+        "DNet-Graphs",
     ]
 )
 
@@ -379,7 +379,7 @@ with t1:
 
     if run_pKa:
         custom_pKa_steps = st.checkbox(
-            "Set up different start, stop and step size parameters for the DNet-pKa module, than the global values",
+            "Set up different `start`, `stop` and `step size` parameters for the DNet-pKa module, than the global values",
             value=False,
         )
         if custom_pKa_steps:
@@ -429,32 +429,141 @@ with t2:
     run_dist = st.checkbox("Run DNet-dist calculation", value=True)
     dist_start = start
     dist_stop = stop
-    dist_selection = selection
-    # d_gin = st.text_input(
-    #     "Graph Info Input", help="Blank = Auto-detect from Graph Step"
-    # )
-    # d_maxwd = st.number_input("Max Water Distance", 3.5)
-    # d_out = st.text_input("Dist Output (leave blank for default)")
+    dist_stop = step
+    dist_max_water_distance = distance_cut_off
 
+    custom_dist_steps = st.checkbox(
+        "Set up different `start`, `stop` and `step size` parameters for the DNet-Dist module, than the global values",
+        value=False,
+    )
+
+    if custom_dist_steps:
+        c1, c2, c3 = st.columns([1, 1, 1])
+
+        with c1:
+            dist_start = c1.number_input(
+                "Dist Start",
+                value=None,
+                step=1,
+                help="Starting frame index for trajectory analysis. If not provided, starts from the first frame.",
+                key="pKa_start",
+            )
+
+        with c2:
+            dist_stop = c2.number_input(
+                "Dist Stop",
+                value=None,
+                step=1,
+                help="Last frame index for trajectory analysis. If not provided, processes until the last frame. It can take a negative value, e.g: -2000 reads the last 2000 frames of the trajectory.",
+                key="pKa_stop",
+            )
+
+        with c3:
+            dist_step = c3.number_input(
+                "Dist Step",
+                value=None,
+                step=1,
+                help="Step size for reading the trajectory frames. For example if its set to 10, only  every 10th frame is read, which reduces the computation time.",
+                key="pKa_steo",
+            )
+
+    custom_max_water_distance = st.checkbox(
+        f"Search water molecules withing a different distance cut off than the H-bond search of `{distance_cut_off} Å`",
+        value=False,
+    )
+    if custom_max_water_distance:
+        dist_max_water_distance = st.number_input(
+            "Maximum distance (in Å) from the side chain atoms within water molecules are considered for analysis",
+            value=distance_cut_off,
+            step=0.1,
+            min_value=0.1,
+            max_value=15.0,
+        )
 
 with t3:
-    g_run = st.checkbox("Enable Graphs", value=True)
-    g_max_w = st.slider("Max Water", 1, 10, 3)
-    g_occ = st.slider("Min Occupancy", 0.0, 1.0, 0.1)
-    g_step = st.number_input("Graph Step", 1, 1000, 100)
-    g_atom = st.checkbox("Atomwise Mode", value=True)
-    g_coll = st.checkbox("Collect Angles")
-    g_out = st.text_input("Graph Output (leave blank for default)")
+    plot_run = st.checkbox("Run DNet-plot module", value=True)
+    plot_frame_to_time = st.number_input(
+        "Convert frame to time. X frames corresponds to 1ns. X=",
+        value=100,
+        step=1,
+        min_value=1,
+        max_value=10000,
+        help="Frame to time conversion. How many frames corresponds to 1ns. 100 if coordinates are written every 10 ps",
+    )
+    pmf_last_nth_frames = st.number_input(
+        "Calculate the PMF profile from the last X number of frames X=",
+        value=20000,
+        step=1,
+        min_value=1,
+        max_value=10000000000,
+        help="By default the PMF is calculated for the last 200ns of the trajectory. If the coordinates are written every 10ps it is the last 20000 frames.",
+    )
 
 
 with t4:
-    pl_run = st.checkbox("Enable Plotting")
-    pl_in = st.text_input("Graphs Info TXT", key="pl_in")
-    pl_pcsv = st.text_input("Pair Distances CSV")
-    pl_wcsv = st.text_input("Water Within CSV")
-    pl_twcsv = st.text_input("Total Water CSV")
-    pl_out = st.text_input("Plot Output (leave blank for default)")
-    pl_step = st.number_input("Plot Step", 1, 1000, 1)
+    graph_run = st.checkbox("Perform additional H-bond graph calculations", value=True)
+    if graph_run:
+        nodes_colored_by = st.selectbox(
+            "Nodes colored by:",
+            options=[
+                None,
+                "Most frequently sampled pKa value",
+                "Avg. number of water molecules around the amino acid side chain",
+            ],
+        )
+
+        edges_colored_by = st.selectbox(
+            "Edges colored by:",
+            options=[
+                None,
+                "Occupancy",
+                "PN: population number (estimated number of conformations sampled by the connection)",
+            ],
+        )
+
+        component_search = st.selectbox(
+            "Component Search Mode:",
+            options=[
+                None,
+                "Connected component of a root node",
+                "Path search between start and goal nodes",
+            ],
+        )
+
+        if component_search == "Connected component of a root node":
+            root_node = st.text_input(
+                "Root Node",
+                placeholder="e.g. PROA-ASP-32",
+                help="In the form of segname-resname-resid, eg: PROA-ASP-32. "
+                "If there is a residue offset set up, please give the residue IDs "
+                "as they are in the structure file, without the offset.",
+            )
+
+        elif component_search == "Path search between start and goal nodes":
+            start = st.text_input(
+                "Start Node",
+                placeholder="e.g. PROA-ASP-32",
+                help="In the form of segname-resname-resid, eg: PROA-ASP-32. "
+                "If there is a residue offset set up, please give the residue IDs "
+                "as they are in the structure file, without the offset.",
+            )
+            goal = st.text_input(
+                "Goal Node",
+                placeholder="e.g. PROA-GLU-50",
+                help="In the form of segname-resname-resid, eg: PROA-ASP-32. "
+                "If there is a residue offset set up, please give the residue IDs "
+                "as they are in the structure file, without the offset.",
+            )
+
+            # Validation: Check if start and goal are identical
+            if start and goal:  # Only check if both are not empty
+                if start.strip() == goal.strip():
+                    st.warning(
+                        f"Start node **{start}** and goal node **{goal}** are the same. "
+                        "Please give different nodes to perform path search between them."
+                    )
+                    st.stop()
+
 
 # --- 3. THE PREVIEW (Updates instantly) ---
 st.divider()
