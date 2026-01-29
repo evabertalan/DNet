@@ -197,46 +197,59 @@ st.info(
     "These parameters set up the global H-bond criteria for the H-bond calculation in the `DNet-dist` and `DNet-graphs` modules. Additional graph calculations with different criteria can be added under the `DNet-graphs` tab."
 )
 
-c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
 
-with c1:
-    distance_cut_off = c1.number_input(
-        "Distance cut off",
-        value=3.5,
-        step=0.1,
-        min_value=0.1,
-        max_value=15.0,
-        help="The distance criterion for the  H-bond search, measured between the heavy atoms. The default value is 3.5Å.",
-    )
+def H_bond_critera_element(key_index):
 
-with c2:
-    angle_cut_off = c2.number_input(
-        "Angle cut off",
-        value=60,
-        step=1,
-        min_value=0,
-        max_value=180,
-        help="Threshold value for the angle formed by the acceptor heavy atom, the H atom, and the donor heavy atom. The default value is 60°.",
-    )
+    c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
 
-with c3:
-    occupany = c3.number_input(
-        "Min H-bond occupancy",
-        value=0.1,
-        step=0.01,
-        min_value=0.01,
-        max_value=1.0,
-        help="Minimum H-bond occupancy required to include an edge in the graph (default: 0.1, which means 10% occupancy).",
-    )
-with c4:
-    max_water = c4.number_input(
-        "Max number of waters allowed in the bridge",
-        value=3,
-        step=1,
-        min_value=0,
-        max_value=5,
-        help="Maximum number of water molecules allowed in the water wire connections (default: 3). When it is set to 0, only direct H-bonds are considered.",
-    )
+    with c1:
+        distance_cut_off = c1.number_input(
+            "Distance cut off",
+            value=3.5,
+            step=0.1,
+            min_value=0.1,
+            max_value=15.0,
+            key=f"distance_{key_index}",
+            help="The distance criterion for the  H-bond search, measured between the heavy atoms. The default value is 3.5Å.",
+        )
+
+    with c2:
+        angle_cut_off = c2.number_input(
+            "Angle cut off",
+            value=60,
+            step=1,
+            min_value=0,
+            max_value=180,
+            key=f"angle_{key_index}",
+            help="Threshold value for the angle formed by the acceptor heavy atom, the H atom, and the donor heavy atom. The default value is 60°.",
+        )
+
+    with c3:
+        occupany = c3.number_input(
+            "Min H-bond occupancy",
+            value=0.1,
+            step=0.01,
+            min_value=0.01,
+            max_value=1.0,
+            key=f"occupancy_{key_index}",
+            help="Minimum H-bond occupancy required to include an edge in the graph (default: 0.1, which means 10% occupancy).",
+        )
+    with c4:
+        max_water = c4.number_input(
+            "Max number of waters allowed in the bridge",
+            value=3,
+            step=1,
+            min_value=0,
+            max_value=5,
+            key=f"max_water_{key_index}",
+            help="Maximum number of water molecules allowed in the water wire connections (default: 3). When it is set to 0, only direct H-bonds are considered.",
+        )
+
+    return distance_cut_off, angle_cut_off, occupany, max_water
+
+
+distance_cut_off, angle_cut_off, occupany, max_water = H_bond_critera_element(0)
+
 
 c1, c2 = st.columns([1, 1])
 
@@ -503,6 +516,7 @@ with t3:
 with t4:
     graph_run = st.checkbox("Perform additional H-bond graph calculations", value=True)
     if graph_run:
+        graphs = []
         nodes_colored_by = st.selectbox(
             "Nodes colored by:",
             options=[
@@ -563,6 +577,27 @@ with t4:
                         "Please give different nodes to perform path search between them."
                     )
                     st.stop()
+
+        custom_critera = st.checkbox(
+            "Use different H-bond criteria for this graph than in the global set up",
+            value=False,
+        )
+        st.markdown(
+            f"""**The global H-bond criteria is set as:**
+                \nDistance cut off: `{distance_cut_off}`
+                \nAngle cut off: `{angle_cut_off}`
+                \nMin H-bond occupancy: `{occupany}`
+                \nMax number of waters allowed in the bridge: `{max_water}`
+            """
+        )
+
+        if custom_critera:
+            (
+                custom_distance_cut_off,
+                custom_angle_cut_off,
+                custom_occupany,
+                custom_max_water,
+            ) = H_bond_critera_element(i)
 
 
 # --- 3. THE PREVIEW (Updates instantly) ---
