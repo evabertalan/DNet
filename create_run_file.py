@@ -1,4 +1,5 @@
 import streamlit as st
+import re
 
 
 def generate_bash(env, pka, graph, dist, plot):
@@ -225,7 +226,7 @@ def H_bond_critera_element(key_index):
         )
 
     with c3:
-        occupany = c3.number_input(
+        occupancy = c3.number_input(
             "Min H-bond occupancy",
             value=0.1,
             step=0.01,
@@ -245,10 +246,10 @@ def H_bond_critera_element(key_index):
             help="Maximum number of water molecules allowed in the water wire connections (default: 3). When it is set to 0, only direct H-bonds are considered.",
         )
 
-    return distance_cut_off, angle_cut_off, occupany, max_water
+    return distance_cut_off, angle_cut_off, occupancy, max_water
 
 
-distance_cut_off, angle_cut_off, occupany, max_water = H_bond_critera_element(0)
+distance_cut_off, angle_cut_off, occupancy, max_water = H_bond_critera_element(0)
 
 
 c1, c2 = st.columns([1, 1])
@@ -324,7 +325,7 @@ if shift_reid_labels:
                 continue
 
 
-with st.expander("Adjust Graph Plot Visualization", expanded=True):
+with st.expander("Adjust Graph Plot Visualization", expanded=False):
     col1, col2, col3 = st.columns(3)
 
     with col1:
@@ -375,6 +376,7 @@ plot_parameters = {
 }
 
 
+st.subheader("Set up calculation parameters for the DNet modules")
 t1, t2, t3, t4 = st.tabs(
     [
         "DNet-pKa",
@@ -514,90 +516,192 @@ with t3:
 
 
 with t4:
-    graph_run = st.checkbox("Perform additional H-bond graph calculations", value=True)
-    if graph_run:
-        graphs = []
-        nodes_colored_by = st.selectbox(
-            "Nodes colored by:",
-            options=[
-                None,
-                "Most frequently sampled pKa value",
-                "Avg. number of water molecules around the amino acid side chain",
-            ],
-        )
+    if "graph_sets" not in st.session_state:
+        st.session_state.graph_sets = []
 
-        edges_colored_by = st.selectbox(
-            "Edges colored by:",
-            options=[
-                None,
-                "Occupancy",
-                "PN: population number (estimated number of conformations sampled by the connection)",
-            ],
-        )
+    col_add, col_reset = st.columns([1, 1])
 
-        component_search = st.selectbox(
-            "Component Search Mode:",
-            options=[
-                None,
-                "Connected component of a root node",
-                "Path search between start and goal nodes",
-            ],
-        )
-
-        if component_search == "Connected component of a root node":
-            root_node = st.text_input(
-                "Root Node",
-                placeholder="e.g. PROA-ASP-32",
-                help="In the form of segname-resname-resid, eg: PROA-ASP-32. "
-                "If there is a residue offset set up, please give the residue IDs "
-                "as they are in the structure file, without the offset.",
+    if col_add.button("➕ Add H-bond Calculation"):
+        if len(st.session_state.graph_sets) < 6:
+            st.session_state.graph_sets.append(
+                {
+                    "calcualtion_name": None,
+                    "nodes_colored_by": None,
+                    "edges_colored_by": None,
+                    "component_search": None,
+                    "distance_cut_off": None,
+                    "angle_cut_off": None,
+                    "min_occupancy": None,
+                    "max_water": None,
+                    "selection": None,
+                }
             )
+        else:
+            st.warning("Maximum 6 additional calculations allowed.")
 
-        elif component_search == "Path search between start and goal nodes":
-            start = st.text_input(
-                "Start Node",
-                placeholder="e.g. PROA-ASP-32",
-                help="In the form of segname-resname-resid, eg: PROA-ASP-32. "
-                "If there is a residue offset set up, please give the residue IDs "
-                "as they are in the structure file, without the offset.",
-            )
-            goal = st.text_input(
-                "Goal Node",
-                placeholder="e.g. PROA-GLU-50",
-                help="In the form of segname-resname-resid, eg: PROA-ASP-32. "
-                "If there is a residue offset set up, please give the residue IDs "
-                "as they are in the structure file, without the offset.",
-            )
+    for i, g_set in enumerate(st.session_state.graph_sets):
 
-            # Validation: Check if start and goal are identical
-            if start and goal:  # Only check if both are not empty
-                if start.strip() == goal.strip():
-                    st.warning(
-                        f"Start node **{start}** and goal node **{goal}** are the same. "
-                        "Please give different nodes to perform path search between them."
+        exp_col, btn_col = st.columns([8, 1])
+
+        with exp_col:
+            with st.expander(f"Calculation Set #{i+1}", expanded=True):
+
+                calcualtion_name = st.text_input(
+                    "Give a unique name to the calculation set:",
+                    value=f"H-bond_graph_calc_{i + 1}",
+                    help="The tool will create a folder with the calculation name, where the results will be saved.",
+                )
+                calcualtion_name = re.sub(
+                    r"[^a-zA-Z0-9\s\-_]", "", calcualtion_name
+                ).replace(" ", "_")
+
+                if not calcualtion_name:
+                    calcualtion_name = f"H-bond_graph_calc_{i + 1}"
+
+                st.write(
+                    f"Results will be saved in the `{output_folder}/{calcualtion_name}` folder"
+                )
+
+                nodes_colored_by = st.selectbox(
+                    f"Nodes colored by (Set {i+1}):",
+                    options=[
+                        None,
+                        "Most frequently sampled pKa value",
+                        "Avg. number of water molecules around the amino acid side chain",
+                    ],
+                    key=f"node_col_{i}",
+                )
+
+                edges_colored_by = st.selectbox(
+                    f"Edges colored by (Set {i+1}):",
+                    options=[
+                        None,
+                        "Occupancy",
+                        "PN: population number (estimated number of conformations sampled by the connection)",
+                    ],
+                    key=f"edge_col_{i}",
+                )
+
+                if (
+                    nodes_colored_by == "Most frequently sampled pKa value"
+                    and edges_colored_by
+                    == "PN: population number (estimated number of conformations sampled by the connection)"
+                ):
+                    st.error(
+                        """Coloring nodes by **Most frequently sampled pKa value** and coloring edges by **PN: population number** can't be performed in the same calculation set.
+                        \nPlease set up separate calculation sets for each coloring types."""
                     )
                     st.stop()
 
-        custom_critera = st.checkbox(
-            "Use different H-bond criteria for this graph than in the global set up",
-            value=False,
-        )
-        st.markdown(
-            f"""**The global H-bond criteria is set as:**
-                \nDistance cut off: `{distance_cut_off}`
-                \nAngle cut off: `{angle_cut_off}`
-                \nMin H-bond occupancy: `{occupany}`
-                \nMax number of waters allowed in the bridge: `{max_water}`
-            """
-        )
+                if (
+                    nodes_colored_by
+                    == "Avg. number of water molecules around the amino acid side chain"
+                    and edges_colored_by
+                    == "PN: population number (estimated number of conformations sampled by the connection)"
+                ):
+                    st.error(
+                        """Coloring nodes by **Avg. number of water molecules around the amino acid side chain** and coloring edges by **PN: population number** can't be performed in the same calculation set.
+                        \nPlease set up separate calculation sets for each coloring types."""
+                    )
+                    st.stop()
 
-        if custom_critera:
-            (
-                custom_distance_cut_off,
-                custom_angle_cut_off,
-                custom_occupany,
-                custom_max_water,
-            ) = H_bond_critera_element(i)
+                component_search = st.selectbox(
+                    f"Component Search Mode (Set {i+1}):",
+                    options=[
+                        None,
+                        "Connected component of a root node",
+                        "Path search between start and goal nodes",
+                    ],
+                    key=f"comp_search_{i}",
+                )
+
+                root_node = None
+                start_node = None
+                goal_node = None
+                if component_search == "Connected component of a root node":
+                    root_node = st.text_input(
+                        f"Root Node (Set {i+1})",
+                        placeholder="e.g. PROA-ASP-32",
+                        key=f"root_{i}",
+                        help="Format: segname-resname-resid.",
+                    )
+
+                elif component_search == "Path search between start and goal nodes":
+                    start_node = st.text_input(
+                        f"Start Node (Set {i+1})",
+                        placeholder="e.g. PROA-ASP-32",
+                        key=f"start_{i}",
+                    )
+                    goal_node = st.text_input(
+                        f"Goal Node (Set {i+1})",
+                        placeholder="e.g. PROA-GLU-50",
+                        key=f"goal_{i}",
+                    )
+
+                    if (
+                        start_node
+                        and goal_node
+                        and start_node.strip() == goal_node.strip()
+                    ):
+                        st.error(f"Start and Goal nodes are the same in Set {i+1}!")
+                        st.stop()
+
+                st.markdown(
+                    f"""
+                **The global H-bond criteria is set as:**
+                * Distance cut off: `{distance_cut_off}`
+                * Angle cut off: `{angle_cut_off}`
+                * Min H-bond occupancy: `{occupancy}`
+                * Max water: `{max_water}`
+                """
+                )
+                c_distance_cut_off = distance_cut_off
+                c_angle_cut_off = angle_cut_off
+                c_occupancy = occupancy
+                c_max_water = max_water
+                c_selection = selection
+
+                custom_criteria = st.checkbox(
+                    "Use different H-bond criteria for this graph",
+                    value=False,
+                    key=f"crit_bool_{i}",
+                )
+                if custom_criteria:
+                    c_distance_cut_off, c_angle_cut_off, c_occupancy, c_max_water = (
+                        H_bond_critera_element(i + 1)
+                    )
+                    c_selection = st.text_input(
+                        "Selection to perform the analysis on, in a form of an MDAnalysis selection sting. ",
+                        "protein",
+                        help="Default is protein. Documentation of the selection language: `https://userguide.mdanalysis.org/stable/selections.html`",
+                        key=f"selection_{i}",
+                    )
+
+                st.session_state.graph_sets[i] = {
+                    "calcualtion_name": calcualtion_name,
+                    "nodes_colored_by": nodes_colored_by,
+                    "edges_colored_by": edges_colored_by,
+                    "component_search": component_search,
+                    "root_node": root_node,
+                    "start_node": start_node,
+                    "goal_node": goal_node,
+                    "distance_cut_off": c_distance_cut_off,
+                    "angle_cut_off": c_angle_cut_off,
+                    "min_occupancy": c_occupancy,
+                    "max_water": c_max_water,
+                    "selection": c_selection,
+                }
+
+        with btn_col:
+            if st.button("❌", key=f"remove_{i}", help="Remove this calculation set"):
+                st.write(i)
+                st.session_state.graph_sets.pop(i)
+                # st.rerun()
+
+if st.session_state.graph_sets:
+    st.divider()
+    st.write("### Data to be processed:")
+    st.json(st.session_state.graph_sets)
 
 
 # --- 3. THE PREVIEW (Updates instantly) ---
