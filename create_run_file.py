@@ -71,7 +71,7 @@ PLOT_PARAMETERS="{glob["plot_parameters"]}"
                         --distance "$DISTANCE_CUT_OFF" \\
                         --max_water "$MAX_WATER" \\
                         --occupancy "$OCCUPANCY" \\
-                        --step "$STEP" \\
+                        --step {glob["step"]} \\
                         --selection "$SELECTION" \\
                         --plot_parameters "$PLOT_PARAMETERS" \\
                         --additional_donors "$DONORS" --additional_acceptors "$ACCEPTORS"'''
@@ -94,6 +94,7 @@ PLOT_PARAMETERS="{glob["plot_parameters"]}"
         bash_script += """\necho "$(date '+%Y-%m-%d %H:%M:%S'): Starting DNet-Dist calculation..." >> "$LOGFILE"\n"""
         bash_script += "\nDISTANCE_FOLDER=${OUTPUT_FOLDER}/distances"
         bash_script += "\nmkdir -p $DISTANCE_FOLDER"
+        bash_script += f'\nMAX_WATER_DISTANCE={dist["dist_max_water_distance"]}'
         bash_script += "\nGRAPHS_INPUT=${ATOMWISE_FOLDER}/workfolder/${MAX_WATER}_water_wires/${psf_name_no_ext}/${psf_name_no_ext}_max_${MAX_WATER}_water_bridges_min_occupancy_${OCCUPANCY}_water_wire_graph_info.txt"
         bash_script += f"""\npython3 -m dnet_dist "$PSF_FILE" $DCD_FILES "$GRAPHS_INPUT"\\
                         --output_folder "$DISTANCE_FOLDER" \\
@@ -116,8 +117,8 @@ PLOT_PARAMETERS="{glob["plot_parameters"]}"
             "\nPKAS_FOR_FRAME_CSV=${PKA_FOLDER}/pkas_for_frames_${psf_name_no_ext}.csv"
         )
         bash_script += "\nPAIR_DISTANCES_CSV=${DISTANCE_FOLDER}/${psf_name_no_ext}_pair_distances.csv"
-        bash_script += "\nWATER_WITHIN_CSV=${DISTANCE_FOLDER}/${psf_name_no_ext}_waters_within_${MAX_WATER_DISTANCE}_of_group.csv"
-        bash_script += "\nTOTAL_WATER_WITHIN_CSV=${DISTANCE_FOLDER}/${psf_name_no_ext}_total_waters_within_${MAX_WATER_DISTANCE}_of_res.csv"
+        bash_script += "\nWATER_WITHIN_CSV=${DISTANCE_FOLDER}/${psf_name_no_ext}_waters_within_${MAX_WATER_DISTANCE//./_}_of_group.csv"
+        bash_script += "\nTOTAL_WATER_WITHIN_CSV=${DISTANCE_FOLDER}/${psf_name_no_ext}_total_waters_within_${MAX_WATER_DISTANCE//./_}_of_res.csv"
         bash_script += f"""\npython3 -m dnet_plot --plot_folder "$PLOT_FOLDER" \\
                         --graphs_info_txt "$GRAPHS_INFO_TXT" \\
                         --pKas_for_frame_csv "$PKAS_FOR_FRAME_CSV" \\
@@ -170,8 +171,8 @@ PLOT_PARAMETERS="{glob["plot_parameters"]}"
                 )
 
             bash_script += f'''\npython3 -m dnet_graphs "$PSF_FILE" $DCD_FILES --output_folder "$RES_FOLDER" \\
-                            {graph_type}
-                            --step "$STEP" \\
+                            {graph_type} \\
+                            --step {glob["step"]} \\
                             --cut_angle {graph["angle_cut_off"]} \\
                             --distance {graph["distance_cut_off"]} \\
                             --max_water {graph["max_water"]} \\
@@ -204,9 +205,9 @@ PLOT_PARAMETERS="{glob["plot_parameters"]}"
             if graph["component_search"] == "Connected component of a root node":
                 bash_script += f''' --root "{graph['root_node']}"'''
             if graph["component_search"] == "Path search between start and goal nodes":
-                bash_script += '--path "${PATH_NAME[@]}"'
+                bash_script += ' --path "${PATH_NAME[@]}"'
 
-                bash_script += ' >> "$LOGFILE" 2>&1 &\n'
+            bash_script += ' >> "$LOGFILE" 2>&1 &\n'
 
     bash_script += "\nwait\n"
     bash_script += """\necho "$(date '+%Y-%m-%d %H:%M:%S'): Finished DNet calculation" >> "$LOGFILE"\n"""
@@ -499,7 +500,7 @@ with st.expander("Adjust Graph Plot Visualization", expanded=False):
         f_height = st.number_input("Fig Height", min_value=1, value=16)
 
         fmts = st.multiselect(
-            "Export Formats", ["png", "eps", "pdf", "svg"], default=["png", "eps"]
+            "Export Formats", ["png", "pdf", "svg"], default=["png", "svg"]
         )
         show_chain = st.checkbox("Show Chain Label", value=False)
 
@@ -741,10 +742,14 @@ with t4:
                     key=f"edge_col_{uid}",
                 )
 
+                is_atomwise = (
+                    edges_colored_by
+                    == "PN: population number (estimated number of conformations sampled by the connection)"
+                )
+
                 if (
                     nodes_colored_by == "Most frequently sampled pKa value"
-                    and edges_colored_by
-                    == "PN: population number (estimated number of conformations sampled by the connection)"
+                    and is_atomwise
                 ):
                     st.error(
                         """Coloring nodes by **Most frequently sampled pKa value** and coloring edges by **PN: population number** can't be performed in the same calculation set.
@@ -755,8 +760,7 @@ with t4:
                 if (
                     nodes_colored_by
                     == "Avg. number of water molecules around the amino acid side chain"
-                    and edges_colored_by
-                    == "PN: population number (estimated number of conformations sampled by the connection)"
+                    and is_atomwise
                 ):
                     st.error(
                         """Coloring nodes by **Avg. number of water molecules around the amino acid side chain** and coloring edges by **PN: population number** can't be performed in the same calculation set.
@@ -777,25 +781,47 @@ with t4:
                 root_node = None
                 start_node = None
                 goal_node = None
+
                 if component_search == "Connected component of a root node":
                     root_node = st.text_input(
                         f"Root Node (Set {i+1})",
-                        placeholder="e.g. PROA-ASP-32",
+                        placeholder=(
+                            "e.g. PROA-ASP-32-OD1" if is_atomwise else "PROA-ASP-32"
+                        ),
                         key=f"root_{uid}",
                         help="Format: segname-resname-resid.",
                     )
+                    if len(root_node.split("-")) == 3 and is_atomwise:
+                        st.error(
+                            "Coloring edges by **PN: population number** requires and atomwise graph calculation. Please give the root node name in atomwise format, e.g: PROA-ASP-32-OD1 or change the edge coloring method."
+                        )
+                        st.stop()
 
                 elif component_search == "Path search between start and goal nodes":
                     start_node = st.text_input(
                         f"Start Node (Set {i+1})",
-                        placeholder="e.g. PROA-ASP-32",
+                        placeholder=(
+                            "e.g. PROA-ASP-32-OD1" if is_atomwise else "PROA-ASP-32"
+                        ),
                         key=f"start_{uid}",
                     )
+                    if len(root_node.split("-")) == 3 and is_atomwise:
+                        st.error(
+                            "Coloring edges by **PN: population number** requires and atomwise graph calculation. Please give the start node name in atomwise format, e.g: PROA-ASP-32-OD1 or change the edge coloring method."
+                        )
+                        st.stop()
                     goal_node = st.text_input(
                         f"Goal Node (Set {i+1})",
-                        placeholder="e.g. PROA-GLU-50",
+                        placeholder=(
+                            "e.g. PROA-SER-22-OG" if is_atomwise else "PROA-SER-22"
+                        ),
                         key=f"goal_{uid}",
                     )
+                    if len(root_node.split("-")) == 3 and is_atomwise:
+                        st.error(
+                            "Coloring edges by **PN: population number** requires and atomwise graph calculation. Please give the goal node name in atomwise format, e.g: PROA-SER-22-OG or change the edge coloring method."
+                        )
+                        st.stop()
 
                     if (
                         start_node
