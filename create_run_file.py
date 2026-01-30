@@ -130,7 +130,87 @@ PLOT_PARAMETERS="{glob["plot_parameters"]}"
             bash_script += f""" --res_id_label_shift '{glob["res_id_label_shift"]}'"""
         bash_script += ' >> "$LOGFILE" 2>&1\n'
 
-    bash_script += "deactivate"
+    if len(graphs):
+        bash_script += "\n# --- Module: DNet-Graphs ---"
+        bash_script += """\necho "$(date '+%Y-%m-%d %H:%M:%S'): Starting DNet-Graph calculation..." >> "$LOGFILE"\n"""
+
+        for graph in graphs:
+            graph_type = "--residuewise"
+            bash_script += (
+                f"\n# --- Running graph calculation {graph['calcualtion_name']} ---"
+            )
+            bash_script += (
+                "\nRES_FOLDER=${OUTPUT_FOLDER}/" + f"{graph['calcualtion_name']}"
+            )
+            bash_script += "\nmkdir -p $RES_FOLDER"
+
+            if graph["nodes_colored_by"] == "Most frequently sampled pKa value":
+                bash_script += (
+                    "\ncp $PKA_FOLDER/${psf_name_no_ext}_data.txt $RES_FOLDER"
+                )
+                graph_type = "--residuewise"
+
+            elif (
+                graph["nodes_colored_by"]
+                == "Avg. number of water molecules around the amino acid side chain"
+            ):
+                graph_type = "--residuewise"
+                pass  # implement avg water coloring; copy file to the folder
+
+            if (
+                graph["edges_colored_by"]
+                == "PN: population number (estimated number of conformations sampled by the connection)"
+            ):
+                graph_type = "--atomwise"
+                bash_script += "\nEDGE_COLOR_FILE=${PLOT_FOLDER}/${psf_name_no_ext}_PN_per_edges.txt"
+
+            if graph["component_search"] == "Path search between start and goal nodes":
+                bash_script += (
+                    f"""\nPATH_NAME=('{graph["start_node"]}' '{graph["goal_node"]}')"""
+                )
+
+            bash_script += f'''\npython3 -m dnet_graphs "$PSF_FILE" $DCD_FILES --output_folder "$RES_FOLDER" \\
+                            {graph_type}
+                            --step "$STEP" \\
+                            --cut_angle {graph["angle_cut_off"]} \\
+                            --distance {graph["distance_cut_off"]} \\
+                            --max_water {graph["max_water"]} \\
+                            --occupancy {graph["min_occupancy"]} \\
+                            --selection "{graph['selection']}"\\
+                            --plot_parameters "$PLOT_PARAMETERS" \\
+                            --additional_donors "$DONORS" \\
+                            --additional_acceptors "$ACCEPTORS"'''
+            if glob["start"]:
+                bash_script += f' --start {glob["start"]}'
+            if glob["stop"]:
+                bash_script += f' --stop {glob["stop"]}'
+            if glob["no_label_plots"]:
+                bash_script += f" --no_label_plots"
+            if glob["dont_save_graph_objects"]:
+                bash_script += f" --dont_save_graph_objects"
+            if glob["res_id_label_shift"]:
+                bash_script += (
+                    f""" --res_id_label_shift '{glob["res_id_label_shift"]}'"""
+                )
+            if graph["nodes_colored_by"]:
+                bash_script += f" --color_data"
+            if graph["edges_colored_by"] == "Occupancy":
+                bash_script += f" --color_edge_by_occupnacy"
+            if (
+                graph["edges_colored_by"]
+                == "PN: population number (estimated number of conformations sampled by the connection)"
+            ):
+                bash_script += f' --color_edges_by "$EDGE_COLOR_FILE"'
+            if graph["component_search"] == "Connected component of a root node":
+                bash_script += f''' --root "{graph['root_node']}"'''
+            if graph["component_search"] == "Path search between start and goal nodes":
+                bash_script += '--path "${PATH_NAME[@]}"'
+
+                bash_script += ' >> "$LOGFILE" 2>&1 &\n'
+
+    bash_script += "\nwait\n"
+    bash_script += """\necho "$(date '+%Y-%m-%d %H:%M:%S'): Finished DNet calculation" >> "$LOGFILE"\n"""
+    bash_script += "\ndeactivate"
 
     return bash_script
 
@@ -834,8 +914,6 @@ DNet_Plot_params = {
     "plot_frame_to_time": plot_frame_to_time,
     "pmf_last_nth_frames": pmf_last_nth_frames,
 }
-
-st.write(st.session_state.graph_sets)
 
 dnet_run_script = generate_bash(
     env_params,
