@@ -1,12 +1,12 @@
 import streamlit as st
 import time
 import re
+import json
 
 
-def generate_bash(env, pka, graph, dist, plot):
-    # Header & Environment
+def generate_bash(env, glob, pKa, dist, plot, graphs):
+    # header and set up module if script is run on e.g: JURECA vs. locally
     bash_script = f"""#!/bin/bash
-
 if command -v module &>/dev/null; then
     echo "Module system detected. Loading Python..."
     module load Python
@@ -14,71 +14,123 @@ else
     echo ""
 fi
 
-
 source {env['venv_path']}
 
 # Setup Logging
 OUTPUT_FOLDER="{env['output_folder']}"
 mkdir -p "$OUTPUT_FOLDER"
-LOGFILE="$OUTPUT_FOLDER/dnet_output.log"
+LOGFILE="$OUTPUT_FOLDER/dnet_{env['dnet_run_name']}.log"
 
-echo "Starting DNet Workflow: $(date)" > "$LOGFILE"
+echo "===============================================================" >> "$LOGFILE"
+echo "$(date '+%Y-%m-%d %H:%M:%S'): Starting DNet Workflow ..." >> "$LOGFILE"
 
 # Global Files
-PSF="{env['psf']}"
-
-
-$(ls /Users/evabertalan/Documents/projects/cgraphs/to_organize/test_cgraphs/cgraphs_test_for_script/jsr1_tests/9cis_m103a/9cis_m103a*.dcd | grep -v 'PBC.dcd')
-DCD=$(ls {env['dcd']})
-
+PSF_FILE="{env['psf']}"
+DCD_FILES=$(ls {env['dcd']})
+WRAP_DCD={env['wrap_dcd']}
 psf_name_no_ext=$(basename "$PSF_FILE" | cut -d. -f1)
-
 cd {env['dnet_dir']} || exit
+
+#Global Parameters
+SELECTION="{glob["selection"]}"
+DISTANCE_CUT_OFF={glob["distance_cut_off"]}
+ANGLE_CUT_OFF={glob["angle_cut_off"]}
+OCCUPANCY={glob["occupancy"]}
+MAX_WATER={glob["max_water"]}
+DONORS="{glob["donors"]}"
+ACCEPTORS="{glob["acceptors"]}"
+STEP={glob["step"]}
+PLOT_PARAMETERS="{glob["plot_parameters"]}"
 
 """
 
-    # dnet_pka
-    if pka["run_pKa"]:
-        bash_script += "\n# --- Module: dnet_pka ---\n"
-        out = pka["out"] if pka["out"] else "$OUTPUT_FOLDER/pKa"
-        bash_script += f'mkdir -p "{out}"\n'
-        cmd = f'python3 -m dnet_pka "$PSF" $DCD --output_folder "{out}" --step {pka["step"]} --selection "{pka["sel"]}"'
-        cmd += "cp $PKA_FOLDER/${psf_name_no_ext}_direct_data.txt $RESIDUEWISE_FOLDER"
+    if pKa["run_pKa"]:
+        bash_script += "\n# --- Module: DNet-pKa ---"
+        bash_script += """\necho "$(date '+%Y-%m-%d %H:%M:%S'): Starting DNet-pKa calculation..." >> "$LOGFILE"\n"""
+        bash_script += "\nPKA_FOLDER=${OUTPUT_FOLDER}/pKa"
+        bash_script += "\nmkdir -p $PKA_FOLDER"
+        bash_script += f'''\npython3 -m dnet_pka "$PSF_FILE" $DCD_FILES \\
+                        --output_folder "$PKA_FOLDER" \\
+                        --selection "{pKa["pKa_selection"]}"'''
+        if pKa["pKa_start"]:
+            bash_script += f' --start {pKa["pKa_start"]}'
+        if pKa["pKa_stop"]:
+            bash_script += f' --stop {pKa["pKa_stop"]}'
+        if pKa["pKa_step"]:
+            bash_script += f' --step {pKa["pKa_step"]}'
+        bash_script += ' >> "$LOGFILE" 2>&1 &\n'
 
-        bash_script += f'{cmd} >> "$LOGFILE" 2>&1\n'
+    bash_script += "\n# --- Module: DNet-Graphs atomwise ---"
+    bash_script += """\necho "$(date '+%Y-%m-%d %H:%M:%S'): Starting DNet-Graphs atomwise calculation..." >> "$LOGFILE"\n"""
+    bash_script += "\nATOMWISE_FOLDER=${OUTPUT_FOLDER}/atomwise_graphs"
+    bash_script += "\nmkdir -p $ATOMWISE_FOLDER"
+    bash_script += f'''\npython3 -m dnet_graphs "$PSF_FILE" $DCD_FILES \\
+                        --atomwise \\
+                        --output_folder "$ATOMWISE_FOLDER" \\
+                        --cut_angle "$ANGLE_CUT_OFF" \\
+                        --distance "$DISTANCE_CUT_OFF" \\
+                        --max_water "$MAX_WATER" \\
+                        --occupancy "$OCCUPANCY" \\
+                        --step "$STEP" \\
+                        --selection "$SELECTION" \\
+                        --plot_parameters "$PLOT_PARAMETERS" \\
+                        --additional_donors "$DONORS" --additional_acceptors "$ACCEPTORS"'''
+    if glob["start"]:
+        bash_script += f' --start {glob["start"]}'
+    if glob["stop"]:
+        bash_script += f' --stop {glob["stop"]}'
+    if glob["no_label_plots"]:
+        bash_script += f" --no_label_plots"
+    if glob["dont_save_graph_objects"]:
+        bash_script += f" --dont_save_graph_objects"
+    if glob["res_id_label_shift"]:
+        bash_script += f""" --res_id_label_shift '{glob["res_id_label_shift"]}'"""
 
-    # dnet_graphs
-    if graph["run"]:
-        bash_script += "\n# --- Module: dnet_graphs ---\n"
-        out = graph["out"] if graph["out"] else "$OUTPUT_FOLDER/graphs"
-        bash_script += f'mkdir -p "{out}"\n'
-        cmd = f'python3 -m dnet_graphs "$PSF" $DCD --output_folder "{out}" --max_water {graph["max_w"]} --occupancy {graph["occ"]} --step {graph["step"]}'
-        if graph["atomwise"]:
-            cmd += " --atomwise"
-        if graph["coll_ang"]:
-            cmd += " --collect_angles"
-        bash_script += f'{cmd} >> "$LOGFILE" 2>&1\n'
+    bash_script += ' >> "$LOGFILE" 2>&1 &\n'
+    bash_script += "\nwait\n"
 
-    # dnet_dist
-    if dist["run"]:
-        bash_script += "\n# --- Module: dnet_dist ---\n"
-        out = dist["out"] if dist["out"] else "$OUTPUT_FOLDER/distances"
-        g_in = (
-            dist["g_in"]
-            if dist["g_in"]
-            else "$OUTPUT_FOLDER/graphs/workfolder/*/*_info.txt"
+    if dist["run_dist"]:
+        bash_script += "\n# --- Module: DNet-Dist ---"
+        bash_script += """\necho "$(date '+%Y-%m-%d %H:%M:%S'): Starting DNet-Dist calculation..." >> "$LOGFILE"\n"""
+        bash_script += "\nDISTANCE_FOLDER=${OUTPUT_FOLDER}/distances"
+        bash_script += "\nmkdir -p $DISTANCE_FOLDER"
+        bash_script += "\nGRAPHS_INPUT=${ATOMWISE_FOLDER}/workfolder/${MAX_WATER}_water_wires/${psf_name_no_ext}/${psf_name_no_ext}_max_${MAX_WATER}_water_bridges_min_occupancy_${OCCUPANCY}_water_wire_graph_info.txt"
+        bash_script += f"""\npython3 -m dnet_dist "$PSF_FILE" $DCD_FILES "$GRAPHS_INPUT"\\
+                        --output_folder "$DISTANCE_FOLDER" \\
+                        --step {dist["dist_step"]} \\
+                        --max_water_distance {dist["dist_max_water_distance"]}"""
+        if dist["dist_start"]:
+            bash_script += f' --start {dist["dist_start"]}'
+        if dist["dist_stop"]:
+            bash_script += f' --stop {dist["dist_stop"]}'
+
+        bash_script += ' >> "$LOGFILE" 2>&1\n'
+
+    if plot["plot_run"]:
+        bash_script += "\n# --- Module: DNet-Plot ---"
+        bash_script += """\necho "$(date '+%Y-%m-%d %H:%M:%S'): Starting DNet-Plot calculation..." >> "$LOGFILE"\n"""
+        bash_script += "\nPLOT_FOLDER=${OUTPUT_FOLDER}/plots"
+        bash_script += "\nmkdir -p $PLOT_FOLDER"
+        bash_script += "\nGRAPHS_INFO_TXT=${ATOMWISE_FOLDER}/workfolder/${MAX_WATER}_water_wires/${psf_name_no_ext}/${psf_name_no_ext}_max_${MAX_WATER}_water_bridges_min_occupancy_${OCCUPANCY}_water_wire_graph_info.txt"
+        bash_script += (
+            "\nPKAS_FOR_FRAME_CSV=${PKA_FOLDER}/pkas_for_frames_${psf_name_no_ext}.csv"
         )
-        bash_script += f'mkdir -p "{out}"\n'
-        cmd = f'python3 -m dnet_dist "$PSF" $DCD "{g_in}" --output_folder "{out}" --max_water_distance {dist["max_wd"]}'
-        bash_script += f'{cmd} >> "$LOGFILE" 2>&1\n'
+        bash_script += "\nPAIR_DISTANCES_CSV=${DISTANCE_FOLDER}/${psf_name_no_ext}_pair_distances.csv"
+        bash_script += "\nWATER_WITHIN_CSV=${DISTANCE_FOLDER}/${psf_name_no_ext}_waters_within_${MAX_WATER_DISTANCE}_of_group.csv"
+        bash_script += "\nTOTAL_WATER_WITHIN_CSV=${DISTANCE_FOLDER}/${psf_name_no_ext}_total_waters_within_${MAX_WATER_DISTANCE}_of_res.csv"
+        bash_script += f"""\npython3 -m dnet_plot --plot_folder "$PLOT_FOLDER" \\
+                        --graphs_info_txt "$GRAPHS_INFO_TXT" \\
+                        --pKas_for_frame_csv "$PKAS_FOR_FRAME_CSV" \\
+                        --pair_distances_csv "$PAIR_DISTANCES_CSV" \\
+                        --water_within_csv "$WATER_WITHIN_CSV" \\
+                        --total_water_within_csv "$TOTAL_WATER_WITHIN_CSV" \\
+                        --frame_to_time {plot["plot_frame_to_time"]} \\
+                        --pmf_last_nth_frames {plot["pmf_last_nth_frames"]}"""
+        if glob["res_id_label_shift"]:
+            bash_script += f""" --res_id_label_shift '{glob["res_id_label_shift"]}'"""
+        bash_script += ' >> "$LOGFILE" 2>&1\n'
 
-    # dnet_plot
-    if plot["run"]:
-        bash_script += "\n# --- Module: dnet_plot ---\n"
-        out = plot["out"] if plot["out"] else "$OUTPUT_FOLDER/plots"
-        bash_script += f'mkdir -p "{out}"\n'
-        cmd = f'python3 -m dnet_plot --plot_folder "{out}" --graphs_info_txt "{plot["g_in"]}" --pair_distances_csv "{plot["p_csv"]}" --water_within_csv "{plot["w_csv"]}" --total_water_within_csv "{plot["tw_csv"]}" --step {plot["step"]}'
-        bash_script += f'\n{cmd} >> "$LOGFILE" 2>&1\n'
+    bash_script += "deactivate"
 
     return bash_script
 
@@ -119,7 +171,20 @@ output_folder = st.text_input(
 if output_folder:
     st.caption(f"**Location of the outputs:** `{output_folder}`")
 else:
-    st.caption("*No DCD files are selected.*")
+    st.caption("*No output folder is selected.*")
+
+dnet_run_name = st.text_input(
+    "Name of the calculation:",
+    value="dnet_calculation",
+    help="The following name will be the name of the log file and this run file.",
+)
+
+dnet_run_name = re.sub(r"[^a-zA-Z0-9\s\-_]", "", dnet_run_name).replace(" ", "_")
+
+if not dnet_run_name:
+    dnet_run_name = f"dnet_calculation"
+
+st.caption(f"**The log file will be saved in:** `{output_folder}/{dnet_run_name}.log`")
 
 
 psf = st.text_input(
@@ -140,7 +205,7 @@ if dcd:
 else:
     st.caption("*No DCD files are selected.*")
 
-wrap_dcc = st.checkbox(
+wrap_dcd = st.checkbox(
     "PBC wrap the trajectories",
     value=True,
     help="Apply periodic boundary condition wrapping to keep molecules inside the simulation box. Default is true.",
@@ -293,7 +358,7 @@ collect_angles = st.checkbox(
     help="Create a csv file with the angles of all donor-acceptor pairs that are within the set H-bond distance criterion in each frame.",
 )
 
-# res_id_label_shift
+res_id_label_shift = {}
 shift_reid_labels = st.checkbox(
     "Shift residue ID labels by a given offset",
     help="One value per protein segment can to be provided.",
@@ -309,7 +374,6 @@ if shift_reid_labels:
         value="segment1: 10\nsegment2: 20",
     )
 
-    res_id_label_shift = {}
     lines = res_id_label_shift_input.split("\n")
 
     for line in lines:
@@ -318,13 +382,14 @@ if shift_reid_labels:
                 key, val = line.split(":", 1)
                 key = key.strip()
                 val = int(val.strip())
+                res_id_label_shift.update({key: val})
 
             except ValueError:
                 st.write(
                     f"Skipping {line}. Incorrect format. Please provide in a format of `PROA: 10`"
                 )
                 continue
-
+    res_id_label_shift = json.dumps(res_id_label_shift)
 
 with st.expander("Adjust Graph Plot Visualization", expanded=False):
     col1, col2, col3 = st.columns(3)
@@ -724,9 +789,10 @@ env_params = {
     "venv_path": venv,
     "dnet_dir": dnet_dir,
     "output_folder": output_folder,
+    "dnet_run_name": dnet_run_name,
     "psf": psf,
     "dcd": dcd,
-    "wrap_dcc": wrap_dcc,
+    "wrap_dcd": wrap_dcd,
 }
 
 global_params = {
@@ -743,7 +809,7 @@ global_params = {
     "no_label_plots": no_label_plots,
     "dont_save_graph_objects": dont_save_graph_objects,
     "collect_angles": collect_angles,
-    "shift_reid_labels": shift_reid_labels,
+    "res_id_label_shift": res_id_label_shift,
     "plot_parameters": plot_parameters,
 }
 
@@ -769,16 +835,25 @@ DNet_Plot_params = {
     "pmf_last_nth_frames": pmf_last_nth_frames,
 }
 
-# Generate the string
-final_script = generate_bash(env_params, pka_params, graph_d, dist_d, plot_d)
+st.write(st.session_state.graph_sets)
 
-# Display the code
-st.code(final_script, language="bash")
+dnet_run_script = generate_bash(
+    env_params,
+    global_params,
+    DNet_pKa_params,
+    DNet_Dist_params,
+    DNet_Plot_params,
+    st.session_state.graph_sets,
+)
 
-# Download Button
+st.code(dnet_run_script, language="bash")
+
+st.warning(
+    f"After downloading the run file, make the file executable with: `chmod +x run_{dnet_run_name}` "
+)
 st.download_button(
-    label="Download run_dnet.sh",
-    data=final_script,
-    file_name="run_dnet.sh",
+    label=f"Download DNet Run File",
+    data=dnet_run_script,
+    file_name=f"run_{dnet_run_name}",
     mime="text/x-shellscript",
 )
