@@ -1,4 +1,5 @@
 import streamlit as st
+import time
 import re
 
 
@@ -521,10 +522,12 @@ with t4:
 
     col_add, col_reset = st.columns([1, 1])
 
-    if col_add.button("➕ Add H-bond Calculation"):
+    def add_graph():
         if len(st.session_state.graph_sets) < 6:
+            unique_id = str(time.time())
             st.session_state.graph_sets.append(
                 {
+                    "uid": unique_id,
                     "calcualtion_name": None,
                     "nodes_colored_by": None,
                     "edges_colored_by": None,
@@ -539,8 +542,18 @@ with t4:
         else:
             st.warning("Maximum 6 additional calculations allowed.")
 
+    def remove_graph(uid):
+        st.session_state.graph_ids.remove(uid)
+        for key in list(st.session_state.keys()):
+            if uid in key:
+                del st.session_state[key]
+
+    if col_add.button("➕ Add H-bond Calculation"):
+        add_graph()
+
     for i, g_set in enumerate(st.session_state.graph_sets):
 
+        uid = g_set["uid"]
         exp_col, btn_col = st.columns([8, 1])
 
         with exp_col:
@@ -569,7 +582,7 @@ with t4:
                         "Most frequently sampled pKa value",
                         "Avg. number of water molecules around the amino acid side chain",
                     ],
-                    key=f"node_col_{i}",
+                    key=f"node_col_{uid}",
                 )
 
                 edges_colored_by = st.selectbox(
@@ -579,7 +592,7 @@ with t4:
                         "Occupancy",
                         "PN: population number (estimated number of conformations sampled by the connection)",
                     ],
-                    key=f"edge_col_{i}",
+                    key=f"edge_col_{uid}",
                 )
 
                 if (
@@ -612,7 +625,7 @@ with t4:
                         "Connected component of a root node",
                         "Path search between start and goal nodes",
                     ],
-                    key=f"comp_search_{i}",
+                    key=f"comp_search_{uid}",
                 )
 
                 root_node = None
@@ -622,7 +635,7 @@ with t4:
                     root_node = st.text_input(
                         f"Root Node (Set {i+1})",
                         placeholder="e.g. PROA-ASP-32",
-                        key=f"root_{i}",
+                        key=f"root_{uid}",
                         help="Format: segname-resname-resid.",
                     )
 
@@ -630,12 +643,12 @@ with t4:
                     start_node = st.text_input(
                         f"Start Node (Set {i+1})",
                         placeholder="e.g. PROA-ASP-32",
-                        key=f"start_{i}",
+                        key=f"start_{uid}",
                     )
                     goal_node = st.text_input(
                         f"Goal Node (Set {i+1})",
                         placeholder="e.g. PROA-GLU-50",
-                        key=f"goal_{i}",
+                        key=f"goal_{uid}",
                     )
 
                     if (
@@ -664,7 +677,7 @@ with t4:
                 custom_criteria = st.checkbox(
                     "Use different H-bond criteria for this graph",
                     value=False,
-                    key=f"crit_bool_{i}",
+                    key=f"crit_bool_{uid}",
                 )
                 if custom_criteria:
                     c_distance_cut_off, c_angle_cut_off, c_occupancy, c_max_water = (
@@ -674,10 +687,11 @@ with t4:
                         "Selection to perform the analysis on, in a form of an MDAnalysis selection sting. ",
                         "protein",
                         help="Default is protein. Documentation of the selection language: `https://userguide.mdanalysis.org/stable/selections.html`",
-                        key=f"selection_{i}",
+                        key=f"selection_{uid}",
                     )
 
                 st.session_state.graph_sets[i] = {
+                    "uid": uid,
                     "calcualtion_name": calcualtion_name,
                     "nodes_colored_by": nodes_colored_by,
                     "edges_colored_by": edges_colored_by,
@@ -692,11 +706,13 @@ with t4:
                     "selection": c_selection,
                 }
 
-        with btn_col:
-            if st.button("❌", key=f"remove_{i}", help="Remove this calculation set"):
-                st.write(i)
-                st.session_state.graph_sets.pop(i)
-                # st.rerun()
+        if i == len(st.session_state.graph_sets) - 1:
+            with btn_col:
+                if st.button(
+                    "❌", key=f"remove_{uid}", help="Remove the last calculation set"
+                ):
+                    st.session_state.graph_sets.pop(i)
+                    st.rerun()
 
 if st.session_state.graph_sets:
     st.divider()
