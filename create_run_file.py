@@ -391,6 +391,7 @@ with t1:
     run_pKa = st.checkbox("Run DNet-pKa module", value=True)
     pKa_start = start
     pKa_stop = stop
+    pKa_step = step
     pKa_selection = selection
 
     if run_pKa:
@@ -445,7 +446,7 @@ with t2:
     run_dist = st.checkbox("Run DNet-dist calculation", value=True)
     dist_start = start
     dist_stop = stop
-    dist_stop = step
+    dist_step = step
     dist_max_water_distance = distance_cut_off
 
     custom_dist_steps = st.checkbox(
@@ -548,7 +549,7 @@ with t4:
             if uid in key:
                 del st.session_state[key]
 
-    if col_add.button("➕ Add H-bond Calculation"):
+    if col_add.button("➕ Additional H-bond Calculation"):
         add_graph()
 
     for i, g_set in enumerate(st.session_state.graph_sets):
@@ -714,11 +715,6 @@ with t4:
                     st.session_state.graph_sets.pop(i)
                     st.rerun()
 
-if st.session_state.graph_sets:
-    st.divider()
-    st.write("### Data to be processed:")
-    st.json(st.session_state.graph_sets)
-
 
 # --- 3. THE PREVIEW (Updates instantly) ---
 st.divider()
@@ -732,31 +728,45 @@ env_params = {
     "dcd": dcd,
     "wrap_dcc": wrap_dcc,
 }
-pka_params = {
+
+global_params = {
+    "selection": selection,
+    "start": start,
+    "stop": stop,
+    "step": step,
+    "distance_cut_off": distance_cut_off,
+    "angle_cut_off": angle_cut_off,
+    "occupancy": occupancy,
+    "max_water": max_water,
+    "donors": donors,
+    "acceptors": acceptors,
+    "no_label_plots": no_label_plots,
+    "dont_save_graph_objects": dont_save_graph_objects,
+    "collect_angles": collect_angles,
+    "shift_reid_labels": shift_reid_labels,
+    "plot_parameters": plot_parameters,
+}
+
+DNet_pKa_params = {
     "run_pKa": run_pKa,
     "pKa_start": pKa_start,
     "pKa_stop": pKa_stop,
+    "pKa_step": pKa_step,
     "pKa_selection": pKa_selection,
 }
 
-graph_d = {
-    "run": g_run,
-    "max_w": g_max_w,
-    "occ": g_occ,
-    "step": g_step,
-    "atomwise": g_atom,
-    "coll_ang": g_coll,
-    "out": g_out,
+DNet_Dist_params = {
+    "run_dist": run_dist,
+    "dist_start": dist_start,
+    "dist_stop": dist_stop,
+    "dist_step": dist_step,
+    "dist_max_water_distance": dist_max_water_distance,
 }
-dist_d = {"run": d_run, "g_in": d_gin, "max_wd": d_maxwd, "out": d_out}
-plot_d = {
-    "run": pl_run,
-    "out": pl_out,
-    "g_in": pl_in,
-    "p_csv": pl_pcsv,
-    "w_csv": pl_wcsv,
-    "tw_csv": pl_twcsv,
-    "step": pl_step,
+
+DNet_Plot_params = {
+    "plot_run": plot_run,
+    "plot_frame_to_time": plot_frame_to_time,
+    "pmf_last_nth_frames": pmf_last_nth_frames,
 }
 
 # Generate the string
