@@ -650,6 +650,11 @@ with t2:
 
 with t3:
     plot_run = st.checkbox("Run DNet-plot module", value=True)
+    if not run_dist:
+        st.error(
+            "DNet-Plot module relies on the DNet-Dist module. Please enable the DNet-Dist calculation."
+        )
+        st.stop()
     plot_frame_to_time = st.number_input(
         "Convert frame to time. X frames corresponds to 1ns. X=",
         value=100,
