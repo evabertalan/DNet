@@ -473,13 +473,16 @@ def get_edge_color_map(values):
 
         unique_values = np.arange(vmin, vmax + 1)
         n_colors = len(unique_values)
+        if n_colors > 1:
+            colors = plotly.colors.n_colors(
+                plotly.colors.hex_to_rgb(low_color),
+                plotly.colors.hex_to_rgb(high_color),
+                n_colors,
+            )
+            colors = [plotly.colors.label_rgb(c) for c in colors]
 
-        colors = plotly.colors.n_colors(
-            plotly.colors.hex_to_rgb(low_color),
-            plotly.colors.hex_to_rgb(high_color),
-            n_colors,
-        )
-        colors = [plotly.colors.label_rgb(c) for c in colors]
+        else:
+            colors = [plotly.colors.label_rgb(plotly.colors.hex_to_rgb(low_color))]
 
         custom_colorscale = []
         for i in range(n_colors):

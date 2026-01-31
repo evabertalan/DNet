@@ -415,12 +415,15 @@ class DNetGraphs:
                 val = None
                 if e in edge_value_dict.keys():
                     val = edge_value_dict[e]
-                    color = plotly.colors.find_intermediate_color(
-                        cmap[0][1],
-                        cmap[-1][1],
-                        (val - vmin) / (vmax - vmin),
-                        colortype="rgb",
-                    )
+                    if len(cmap) > 1:
+                        color = plotly.colors.find_intermediate_color(
+                            cmap[0][1],
+                            cmap[-1][1],
+                            (val - vmin) / (vmax - vmin),
+                            colortype="rgb",
+                        )
+                    else:
+                        color = cmap[0][1]
 
                 elif color_edge_by_occupnacy:
                     occ = occ_per_wire[list(graph.edges).index(e)]
