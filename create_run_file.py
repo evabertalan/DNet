@@ -479,7 +479,7 @@ if shift_reid_labels:
     res_id_label_shift = json.dumps(res_id_label_shift)
 
 with st.expander("Adjust Graph Plot Visualization", expanded=False):
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
 
     with col1:
         st.markdown("#### Sizes")
@@ -488,14 +488,13 @@ with st.expander("Adjust Graph Plot Visualization", expanded=False):
         node_lbl_s = st.number_input("Node Label Size", min_value=1, value=15, step=1)
         edge_lbl_s = st.number_input("Edge Label Size", min_value=1, value=15, step=1)
 
-    with col2:
         st.markdown("#### Colors")
         g_color = st.color_picker("Graph Color", "#808080")
         # w_color = st.color_picker("Water Node Color", "#db5c5c")
-        d_color = st.color_picker("Difference Graph Color", "#129fe6")
+        # d_color = st.color_picker("Difference Graph Color", "#129fe6")
         np_color = st.color_picker("Color of Non-Protein Nodes", "#0000ff")
 
-    with col3:
+    with col2:
         st.markdown("#### Layout & Format")
         title_fs = st.number_input("Title Font Size", min_value=1, value=30)
         label_fs = st.number_input("Label Font Size", min_value=1, value=36)
@@ -517,7 +516,7 @@ plot_parameters = {
     "node_size": node_s,
     "graph_color": g_color,
     # "water_node_color": w_color,
-    "difference_graph_color": d_color,
+    # "difference_graph_color": d_color,
     "non_prot_color": np_color,
     "plot_title_fontsize": title_fs,
     "plot_label_fontsize": label_fs,
@@ -797,7 +796,7 @@ with t4:
                         key=f"root_{uid}",
                         help="Format: segname-resname-resid.",
                     )
-                    if len(root_node.split("-")) == 3 and is_atomwise:
+                    if root_node and len(root_node.split("-")) == 3 and is_atomwise:
                         st.error(
                             "Coloring edges by **PN: population number** requires and atomwise graph calculation. Please give the root node name in atomwise format, e.g: PROA-ASP-32-OD1 or change the edge coloring method."
                         )
@@ -811,7 +810,7 @@ with t4:
                         ),
                         key=f"start_{uid}",
                     )
-                    if len(root_node.split("-")) == 3 and is_atomwise:
+                    if start_node and len(start_node.split("-")) == 3 and is_atomwise:
                         st.error(
                             "Coloring edges by **PN: population number** requires and atomwise graph calculation. Please give the start node name in atomwise format, e.g: PROA-ASP-32-OD1 or change the edge coloring method."
                         )
@@ -823,7 +822,7 @@ with t4:
                         ),
                         key=f"goal_{uid}",
                     )
-                    if len(root_node.split("-")) == 3 and is_atomwise:
+                    if goal_node and len(goal_node.split("-")) == 3 and is_atomwise:
                         st.error(
                             "Coloring edges by **PN: population number** requires and atomwise graph calculation. Please give the goal node name in atomwise format, e.g: PROA-SER-22-OG or change the edge coloring method."
                         )
