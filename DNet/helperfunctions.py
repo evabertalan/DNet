@@ -6,8 +6,6 @@ import warnings
 import numpy as np
 import networkx as nx
 from sklearn.decomposition import PCA
-from matplotlib import cm
-import matplotlib as mpl
 from pathlib import Path
 import ast
 import plotly.express as px
@@ -340,14 +338,16 @@ def read_propka_file(file_path, selected_nodes):
 def read_color_data_file(pdb_id, pdb_root_folder, selected_nodes):
     file_endings = ["_data.txt", "_color.txt", "data.txt", "color.txt"]
 
+    directory = Path(pdb_root_folder)
     for ending in file_endings:
-        if os.path.isfile(f"{pdb_root_folder}/{pdb_id}{ending}"):
-            color_file = f"{pdb_root_folder}/{pdb_id}{ending}"
-            break
-        else:
-            color_file = ""
+        for file_path in directory.glob(f"{pdb_id}*{ending}"):
+            if os.path.isfile(file_path):
+                color_file = file_path
+                break
+            else:
+                color_file = None
 
-    if color_file.endswith("txt"):
+    if color_file:
         content = np.loadtxt(color_file, dtype=str)
     else:
         return None

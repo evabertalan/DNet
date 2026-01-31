@@ -147,7 +147,7 @@ PLOT_PARAMETERS="{glob["plot_parameters"]}"
 
             if graph["nodes_colored_by"] == "Most frequently sampled pKa value":
                 bash_script += (
-                    "\ncp $PKA_FOLDER/${psf_name_no_ext}_data.txt $RES_FOLDER"
+                    "\ncp $PKA_FOLDER/${psf_name_no_ext}_pKa_data.txt $RES_FOLDER"
                 )
                 graph_type = "--residuewise"
 
@@ -155,6 +155,7 @@ PLOT_PARAMETERS="{glob["plot_parameters"]}"
                 graph["nodes_colored_by"]
                 == "Avg. number of water molecules around the amino acid side chain"
             ):
+                bash_script += "\ncp $DISTANCE_FOLDER/${psf_name_no_ext}_avg_waters_data.txt $RES_FOLDER"
                 graph_type = "--residuewise"
                 pass  # implement avg water coloring; copy file to the folder
 
@@ -195,6 +196,11 @@ PLOT_PARAMETERS="{glob["plot_parameters"]}"
                 )
             if graph["nodes_colored_by"]:
                 bash_script += f" --color_data"
+            if (
+                graph["nodes_colored_by"]
+                == "Avg. number of water molecules around the amino acid side chain"
+            ):
+                bash_script += f' --node_color_map "Magma"'
             if graph["edges_colored_by"] == "Occupancy":
                 bash_script += f" --color_edge_by_occupnacy"
             if (

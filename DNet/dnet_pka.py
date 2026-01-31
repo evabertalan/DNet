@@ -332,7 +332,7 @@ def main():
     stats_filename = os.path.join(output_folder, f"pkas_stats_{base_name}.csv")
     dnet_pKa.get_pka_statistic(write_to_file=stats_filename)
 
-    external_data_file_name = os.path.join(output_folder, f"{base_name}_data.txt")
+    external_data_file_name = os.path.join(output_folder, f"{base_name}_pKa_data.txt")
     dnet_pKa.write_pka_to_external_data_file(external_data_file_name)
 
     if args.plot:

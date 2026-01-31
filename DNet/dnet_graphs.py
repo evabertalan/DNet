@@ -553,7 +553,7 @@ class DNetGraphs:
                 )
                 if color_info is None:
                     self.logger.error(
-                        f"No {self.sim_name}_data.txt file was found in {self.target_folder}."
+                        f"No _data.txt file was found for {self.sim_name} in {self.target_folder}."
                     )
                 elif len(color_info):
                     value_colors, cmap, norm = _hf.get_color_map(
@@ -565,7 +565,7 @@ class DNetGraphs:
                     )
                 else:
                     self.logger.error(
-                        f"The content of {self.sim_name}_data.txt is invalid or no residues found in the file matching the selection for node coloring"
+                        f"The content of the _data.txt file for {self.sim_name} is invalid or no residues found in the file matching the selection for node coloring"
                     )
 
         markers = [
