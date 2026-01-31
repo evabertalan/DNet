@@ -338,6 +338,7 @@ def read_propka_file(file_path, selected_nodes):
 def read_color_data_file(pdb_id, pdb_root_folder, selected_nodes):
     file_endings = ["_data.txt", "_color.txt", "data.txt", "color.txt"]
 
+    color_file = None
     directory = Path(pdb_root_folder)
     for ending in file_endings:
         for file_path in directory.glob(f"{pdb_id}*{ending}"):

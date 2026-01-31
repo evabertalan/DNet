@@ -21,6 +21,10 @@
 #    Bridge: A graph-based algorithm to analyze dynamic H-bond networks
 #    in membrane proteins, Journal of Chemical Theory and Computation, 2019.
 
+import warnings
+
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="MDAnalysis.*")
+
 from . import helpfunctions as _hf
 from .network import NetworkAnalysis
 import numpy as _np
@@ -33,8 +37,6 @@ from collections import OrderedDict as _odict
 from matplotlib.ticker import MaxNLocator
 import warnings
 import pandas as pd
-
-warnings.filterwarnings("ignore", category=DeprecationWarning, module="MDAnalysis.*")
 
 # import matplotlib
 # matplotlib.use('TKAgg', warn=False)
