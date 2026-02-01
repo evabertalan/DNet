@@ -83,6 +83,8 @@ PLOT_PARAMETERS="{glob["plot_parameters"]}"
         bash_script += f" --no_label_plots"
     if glob["dont_save_graph_objects"]:
         bash_script += f" --dont_save_graph_objects"
+    if glob["collect_angles"]:
+        bash_script += f" --collect_angles"
     if glob["res_id_label_shift"]:
         bash_script += f""" --res_id_label_shift '{glob["res_id_label_shift"]}'"""
 
@@ -190,6 +192,8 @@ PLOT_PARAMETERS="{glob["plot_parameters"]}"
                 bash_script += f" --no_label_plots"
             if glob["dont_save_graph_objects"]:
                 bash_script += f" --dont_save_graph_objects"
+            if glob["collect_angles"]:
+                bash_script += f" --collect_angles"
             if glob["res_id_label_shift"]:
                 bash_script += (
                     f""" --res_id_label_shift '{glob["res_id_label_shift"]}'"""
