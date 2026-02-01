@@ -448,7 +448,7 @@ dont_save_graph_objects = st.checkbox(
 # with c3:
 collect_angles = st.checkbox(
     "Collect H-bond angles for additional analysis later",
-    value=True,
+    value=False,
     help="Create a csv file with the angles of all donor-acceptor pairs that are within the set H-bond distance criterion in each frame.",
 )
 
