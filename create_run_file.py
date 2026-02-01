@@ -331,7 +331,7 @@ with c2:
         "Stop",
         value=None,
         step=1,
-        help="Last frame index for trajectory analysis. If not provided, processes until the last frame. It can take a negative value, e.g: -2000 reads the last 2000 frames of the trajectory.",
+        help="Last frame index for trajectory analysis. If not provided, processes until the last frame. It can take a negative value, e.g: -20000 reads the last 20000 frames of the trajectory.",
         key="stop",
     )
 
@@ -345,6 +345,9 @@ with c3:
     )
 
 if not output_folder or not psf or not dcd:
+    st.warning(
+        "Please first fill out the required fields. Input fields for the additional parameters will only be shown after the required parameters are set up."
+    )
     st.stop()
 
 st.divider()
