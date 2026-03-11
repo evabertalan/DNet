@@ -163,7 +163,7 @@ class DNetGraphs:
         )
 
         angles_per_frame = wba.set_water_wires(
-            water_in_convex_hull=max_water, max_water=max_water
+            water_in_convex_hull=max_water, max_water=max_water, collect_angles=False
         )
         wba.compute_average_water_per_wire()
         if connected_component_root:
@@ -228,7 +228,7 @@ class DNetGraphs:
                 Path(self.workfolder, f"{self.max_water}_water_wires", self.sim_name)
             )
 
-        if collect_angles:
+        if collect_angles and len(angles_per_frame):
             no_self_pair = [
                 col
                 for col in angles_per_frame.columns

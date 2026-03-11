@@ -315,7 +315,11 @@ class WireAnalysis(NetworkAnalysis):
         self.first_frame_dict = {}
 
     def set_water_wires(
-        self, max_water=5, allow_direct_bonds=True, water_in_convex_hull=False
+        self,
+        max_water=5,
+        allow_direct_bonds=True,
+        water_in_convex_hull=False,
+        collect_angles=False,
     ):
 
         intervals_results = {}
@@ -446,8 +450,9 @@ class WireAnalysis(NetworkAnalysis):
                 water_hbonds = water_pairs
                 local_hbonds = local_pairs
 
-            frame_angles = dict(zip(angle_data["pair_names"], angle_data["angles"]))
-            angles_per_frame.append(frame_angles)
+            if collect_angles:
+                frame_angles = dict(zip(angle_data["pair_names"], angle_data["angles"]))
+                angles_per_frame.append(frame_angles)
             da_hbonds = _np.sort(da_hbonds)
             water_hbonds = _np.sort(water_hbonds) + self._first_water_id
 
@@ -542,7 +547,7 @@ class WireAnalysis(NetworkAnalysis):
         self.hash_table = this_frame_table
         self.occupancy_dict = {}
         self.first_frame_dict = {}
-        if angles_per_frame:
+        if collect_angles and len(angles_per_frame):
             df = pd.DataFrame(angles_per_frame).round(1)
             return df
         return None
