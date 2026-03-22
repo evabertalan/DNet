@@ -243,13 +243,13 @@ with c1:
         "Venv Path",
         "./dnet_env/bin/activate",
         help="If the run file is in the folder where DNet is installed, don't change this path",
-    )
+    ).strip()
 with c2:
     dnet_dir = st.text_input(
         "Path to the folder where DNET is installed, relative to this run file",
         "./DNet",
         help="If the run file is next to the DNet folder, don't change this path",
-    )
+    ).strip()
 
 st.divider()
 
@@ -258,7 +258,7 @@ st.header("Global parameters")
 output_folder = st.text_input(
     "Output folder - required",
     help="Path to the folder where the log file and all results will be saved.",
-)
+).strip()
 if output_folder:
     st.caption(f"**Location of the outputs:** `{output_folder}`")
 else:
@@ -270,7 +270,9 @@ dnet_run_name = st.text_input(
     help="The following name will be the name of the log file and this run file.",
 )
 
-dnet_run_name = re.sub(r"[^a-zA-Z0-9\s\-_]", "", dnet_run_name).replace(" ", "_")
+dnet_run_name = (
+    re.sub(r"[^a-zA-Z0-9\s\-_]", "", dnet_run_name).replace(" ", "_").strip()
+)
 
 if not dnet_run_name:
     dnet_run_name = f"dnet_calculation"
@@ -281,7 +283,7 @@ st.caption(f"**The log file will be saved in:** `{output_folder}/{dnet_run_name}
 psf = st.text_input(
     "PSF File - required",
     help="Path to the PSF file required to load the molecular system.",
-)
+).strip()
 if psf:
     st.caption(f"**Selected .psf file:** `{psf}`")
 else:
