@@ -673,7 +673,7 @@ class DNetGraphs:
                             name="",
                             showlegend=False,
                             hovertemplate=(
-                                f"{chain_id}-{_hf.amino_d[res_name]}{int(res_id) + res_id_offset}{atom}<br>"
+                                f"{chain_id}-{res_name}{int(res_id) + res_id_offset}{atom}<br>"
                                 f"{color_info[n] if n in color_info.keys() else ''}<br>"
                             ),
                             hoverlabel=dict(bgcolor="rgba(211, 211, 211, 0.3)"),
