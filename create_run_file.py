@@ -81,6 +81,8 @@ PLOT_PARAMETERS="{glob["plot_parameters"]}"
         bash_script += f' --stop {glob["stop"]}'
     if glob["no_label_plots"]:
         bash_script += f" --no_label_plots"
+    if glob["is_backbone"]:
+        bash_script += f" --include_backbone"
     if glob["dont_save_graph_objects"]:
         bash_script += f" --dont_save_graph_objects"
     if glob["collect_angles"]:
@@ -190,6 +192,8 @@ PLOT_PARAMETERS="{glob["plot_parameters"]}"
                 bash_script += f' --stop {glob["stop"]}'
             if glob["no_label_plots"]:
                 bash_script += f" --no_label_plots"
+            if graph["is_backbone"]:
+                bash_script += f" --include_backbone"
             if glob["dont_save_graph_objects"]:
                 bash_script += f" --dont_save_graph_objects"
             if glob["collect_angles"]:
@@ -408,10 +412,19 @@ def H_bond_critera_element(key_index):
             help="Maximum number of water molecules allowed in the water wire connections (default: 3). When it is set to 0, only direct H-bonds are considered.",
         )
 
-    return distance_cut_off, angle_cut_off, occupancy, max_water
+    is_backbone = st.checkbox(
+        "Include backbone side chain H-bonds",
+        value=False,
+        key=f"is_backbone_{key_index}",
+        help="Include interactions between backbone and sidechain atoms in the analysis.",
+    )
+
+    return distance_cut_off, angle_cut_off, occupancy, max_water, is_backbone
 
 
-distance_cut_off, angle_cut_off, occupancy, max_water = H_bond_critera_element(0)
+distance_cut_off, angle_cut_off, occupancy, max_water, is_backbone = (
+    H_bond_critera_element(0)
+)
 
 
 c1, c2 = st.columns([1, 1])
@@ -699,6 +712,7 @@ with t4:
                     "edges_colored_by": None,
                     "component_search": None,
                     "distance_cut_off": None,
+                    "is_backbone": None,
                     "angle_cut_off": None,
                     "min_occupancy": None,
                     "max_water": None,
@@ -857,6 +871,7 @@ with t4:
                 * Angle cut off: `{angle_cut_off}`
                 * Min H-bond occupancy: `{occupancy}`
                 * Max water: `{max_water}`
+                * Include backbone side chain H-bonds: `{is_backbone}`
                 """
                 )
                 c_distance_cut_off = distance_cut_off
@@ -864,6 +879,7 @@ with t4:
                 c_occupancy = occupancy
                 c_max_water = max_water
                 c_selection = selection
+                c_is_backbone = is_backbone
 
                 custom_criteria = st.checkbox(
                     "Use different H-bond criteria for this graph",
@@ -871,9 +887,13 @@ with t4:
                     key=f"crit_bool_{uid}",
                 )
                 if custom_criteria:
-                    c_distance_cut_off, c_angle_cut_off, c_occupancy, c_max_water = (
-                        H_bond_critera_element(i + 1)
-                    )
+                    (
+                        c_distance_cut_off,
+                        c_angle_cut_off,
+                        c_occupancy,
+                        c_max_water,
+                        c_is_backbone,
+                    ) = H_bond_critera_element(i + 1)
                     c_selection = st.text_input(
                         "Selection to perform the analysis on, in a form of an MDAnalysis selection sting. ",
                         "protein",
@@ -895,6 +915,7 @@ with t4:
                     "min_occupancy": c_occupancy,
                     "max_water": c_max_water,
                     "selection": c_selection,
+                    "is_backbone": c_is_backbone,
                 }
 
         if i == len(st.session_state.graph_sets) - 1:
@@ -926,6 +947,7 @@ global_params = {
     "stop": stop,
     "step": step,
     "distance_cut_off": distance_cut_off,
+    "is_backbone": is_backbone,
     "angle_cut_off": angle_cut_off,
     "occupancy": occupancy,
     "max_water": max_water,
