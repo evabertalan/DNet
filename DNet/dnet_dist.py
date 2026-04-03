@@ -11,7 +11,7 @@ import pandas as pd
 import MDAnalysis as mda
 from MDAnalysis.analysis.distances import distance_array
 from MDAnalysis.lib.distances import apply_PBC
-from MDAnalysis.transformations import wrap
+from MDAnalysis import transformations
 import matplotlib.pyplot as plt
 from scipy.spatial import cKDTree
 from pathlib import Path
@@ -25,8 +25,19 @@ class DNetDist:
         self.dcd = dcd
         self.u = mda.Universe(self.psf, self.dcd)
 
-        if wrap_dcd:
-            self.u.trajectory.add_transformations(wrap(self.u.atoms))
+        if wrap_dcd == "fast":
+            self.u.trajectory.add_transformations(transformations.wrap(self.u.atoms))
+        elif wrap_dcd == "centered":
+            protein = self.u.select_atoms("protein")
+            solvent = self.u.select_atoms("not protein")
+
+            transforms = [
+                transformations.unwrap(self.u.atoms),
+                transformations.center_in_box(protein, wrap=False),
+                transformations.wrap(solvent, compound="residues"),
+            ]
+
+            self.u.trajectory.add_transformations(*transforms)
 
         base = os.path.basename(psf)
         self.base_name, ext = os.path.splitext(base)
@@ -316,9 +327,15 @@ def main():
 
     parser.add_argument(
         "--wrap_dcd",
-        help="Apply wrapping transformations to keep molecules within the simulation box. Default is True",
+        type=str,
+        choices=["fast", "centered", "None"],
+        default="fast",
+        help=(
+            "Apply periodic boundary condition (PBC) handling to the trajectory. "
+            "'fast' performs simple wrapping, while 'centered' unwraps, centers the system, "
+            "and rewraps solvent for clean visualization. With None no wrapping is applied. Default: fast."
+        ),
     )
-
     args = parser.parse_args()
 
     dcd_files = []
@@ -339,10 +356,11 @@ def main():
         output_folder, f"{base_name}_avg_waters_data.txt"
     )
 
-    if args.wrap_dcd:
-        wrap_dcd = args.wrap_dcd.lower() == "true"
+    if args.wrap_dcd in ["fast", "centered"]:
+        wrap_dcd = args.wrap_dcd
     else:
-        wrap_dcd = True
+        wrap_dcd = None
+
     dist_traj = DNetDist(args.psf, dcd_files, output_folder, wrap_dcd=wrap_dcd)
     dist_traj.calculate_distances(
         graphs_input=args.graphs_input,

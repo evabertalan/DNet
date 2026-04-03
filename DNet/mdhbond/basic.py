@@ -26,13 +26,16 @@ warnings.filterwarnings("ignore", category=DeprecationWarning, module="MDAnalysi
 
 from . import helpfunctions as _hf
 import MDAnalysis as _MDAnalysis
-from MDAnalysis.transformations import wrap
+from MDAnalysis import transformations
 import pickle as cPickle
 import copy as _cp
+from pathlib import Path
 
 # import matplotlib
 # matplotlib.use('TKAgg', warn=False)
 import matplotlib.pyplot as _plt
+
+import pdb
 
 
 class BasicFunctionality(object):
@@ -47,7 +50,8 @@ class BasicFunctionality(object):
         step=1,
         ions=[],
         restore_filename=None,
-        wrap_dcd=False,
+        wrap_dcd=None,  # options are: None, 'fast', 'centered'
+        write_wrapped_traj_to=None,
     ):
 
         if restore_filename is not None:
@@ -63,10 +67,45 @@ class BasicFunctionality(object):
         self._trajectories = trajectories
         if trajectories is not None:
             self._universe = _MDAnalysis.Universe(structure, trajectories)
-            if wrap_dcd:
+            if wrap_dcd == "fast":
+                print("Wrapping trajectories with fast, simple method")
                 self._universe.trajectory.add_transformations(
-                    wrap(self._universe.atoms)
+                    transformations.wrap(self._universe.atoms)
                 )
+            elif wrap_dcd == "centered":
+                print("Wrapping trajectories with centered method")
+                protein = self._universe.select_atoms("protein")
+                solvent = self._universe.select_atoms("not protein")
+
+                transforms = [
+                    transformations.unwrap(self._universe.atoms),
+                    transformations.center_in_box(protein, wrap=False),
+                    transformations.wrap(solvent, compound="residues"),
+                ]
+
+                self._universe.trajectory.add_transformations(*transforms)
+
+            if (wrap_dcd == "fast" or wrap_dcd == "centered") and write_wrapped_traj_to:
+                lengths = [len(traj) for traj in self._universe.trajectory.readers]
+                write_start = 0
+
+                mode = "_centered" if wrap_dcd == "centered" else ""
+                for i, length in enumerate(lengths):
+
+                    input_path = Path(trajectories[i])
+
+                    file_name = f"{input_path.stem}_PBC{mode}{input_path.suffix}"
+                    output_path = Path(write_wrapped_traj_to, file_name)
+
+                    write_stop = write_start + length
+                    with _MDAnalysis.Writer(
+                        str(output_path), n_atoms=self._universe.atoms.n_atoms
+                    ) as W:
+                        for ts in self._universe.trajectory[write_start:write_stop]:
+                            W.write(self._universe.atoms)
+
+                    write_start = write_stop
+
         else:
             self._universe = _MDAnalysis.Universe(structure)
         self._trajectory_slice = slice(

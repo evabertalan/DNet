@@ -17,7 +17,7 @@
 #    please cite:
 #
 #    Malte Siemers, Michalis Lazaratos, Konstantina Karathanou,
-#    Federico Guerra, Leonid Brown, and Ana-Nicoleta Bondar.
+#    Federico Guerra, Leonid Bfrown, and Ana-Nicoleta Bondar.
 #    Bridge: A graph-based algorithm to analyze dynamic H-bond networks
 #    in membrane proteins, Journal of Chemical Theory and Computation, 2019.
 
@@ -66,7 +66,8 @@ class WireAnalysis(NetworkAnalysis):
         residuewise=True,
         add_donors_without_hydrogen=False,
         restore_filename=None,
-        wrap_dcd=False,
+        wrap_dcd=None,
+        write_wrapped_traj_to=None,
     ):
 
         super(WireAnalysis, self).__init__(
@@ -88,6 +89,7 @@ class WireAnalysis(NetworkAnalysis):
             add_donors_without_hydrogen=add_donors_without_hydrogen,
             restore_filename=restore_filename,
             wrap_dcd=wrap_dcd,
+            write_wrapped_traj_to=write_wrapped_traj_to,
         )
 
         if restore_filename != None:

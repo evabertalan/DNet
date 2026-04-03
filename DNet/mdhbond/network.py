@@ -61,7 +61,8 @@ class NetworkAnalysis(BasicFunctionality):
         residuewise=True,
         add_donors_without_hydrogen=False,
         restore_filename=None,
-        wrap_dcd=False,
+        wrap_dcd=None,
+        write_wrapped_traj_to=None,
     ):
 
         super(NetworkAnalysis, self).__init__(
@@ -74,6 +75,7 @@ class NetworkAnalysis(BasicFunctionality):
             ions=ions,
             restore_filename=restore_filename,
             wrap_dcd=wrap_dcd,
+            write_wrapped_traj_to=write_wrapped_traj_to,
         )
         if restore_filename != None:
             return

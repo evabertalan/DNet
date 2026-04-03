@@ -98,7 +98,8 @@ class DNetGraphs:
         start=None,
         stop=None,
         residuewise=True,
-        wrap_dcd=False,
+        wrap_dcd=None,
+        write_wrapped_traj_to=None,
         connected_component_root=None,
         path=(),
         occupancy=None,
@@ -157,6 +158,7 @@ class DNetGraphs:
             distance=distance,
             cut_angle=cut_angle,
             wrap_dcd=wrap_dcd,
+            write_wrapped_traj_to=write_wrapped_traj_to,
             step=step,
             start=start,
             stop=stop,
@@ -1127,9 +1129,23 @@ def main():
     parser.add_argument(
         "--wrap_dcd",
         type=str,
-        choices=["true", "false"],
-        default="true",
-        help="Apply periodic boundary condition wrapping to keep molecules inside the simulation box. Use 'true' or 'false' (default: true).",
+        choices=["fast", "centered", "None"],
+        default="fast",
+        help=(
+            "Apply periodic boundary condition (PBC) handling to the trajectory. "
+            "'fast' performs simple wrapping, while 'centered' unwraps, centers the system, "
+            "and rewraps solvent for clean visualization. With None no wrapping is applied. Default: fast"
+        ),
+    )
+
+    parser.add_argument(
+        "--write_wrapped_traj_to",
+        type=str,
+        default=None,
+        help=(
+            "Path to a directory where wrapped trajectory files will be written. "
+            "If not provided, wrapped trajectories are not saved to disk."
+        ),
     )
 
     parser.add_argument(
@@ -1230,10 +1246,13 @@ def main():
     )
     os.makedirs(output_folder, exist_ok=True)
 
-    if args.wrap_dcd:
-        wrap_dcd = args.wrap_dcd.lower() == "true"
+    if args.wrap_dcd in ["fast", "centered"]:
+        wrap_dcd = args.wrap_dcd
     else:
-        wrap_dcd = True
+        wrap_dcd = None
+
+    if args.write_wrapped_traj_to is not None:
+        os.makedirs(args.write_wrapped_traj_to, exist_ok=True)
 
     if args.color_edge_by_occupnacy and args.color_edges_by_file:
         raise ValueError(
@@ -1264,6 +1283,7 @@ def main():
         distance=args.distance,
         cut_angle=args.cut_angle,
         wrap_dcd=wrap_dcd,
+        write_wrapped_traj_to=args.write_wrapped_traj_to,
         step=args.step,
         start=args.start,
         stop=args.stop,
