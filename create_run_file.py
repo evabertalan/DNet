@@ -71,6 +71,7 @@ PLOT_PARAMETERS="{glob["plot_parameters"]}"
                         --distance "$DISTANCE_CUT_OFF" \\
                         --max_water "$MAX_WATER" \\
                         --occupancy "$OCCUPANCY" \\
+                        --wrap_dcd "$WRAP_DCD" \\
                         --step {glob["step"]} \\
                         --selection "$SELECTION" \\
                         --plot_parameters "$PLOT_PARAMETERS" \\
@@ -87,6 +88,8 @@ PLOT_PARAMETERS="{glob["plot_parameters"]}"
         bash_script += f" --dont_save_graph_objects"
     if glob["collect_angles"]:
         bash_script += f" --collect_angles"
+    if env["write_wrapped_traj_to"]:
+        bash_script += f" --write_wrapped_traj_to {env['write_wrapped_traj_to']}"
     if glob["res_id_label_shift"]:
         bash_script += f""" --res_id_label_shift '{glob["res_id_label_shift"]}'"""
 
@@ -103,6 +106,7 @@ PLOT_PARAMETERS="{glob["plot_parameters"]}"
         bash_script += f"""\npython3 -m dnet_dist "$PSF_FILE" $DCD_FILES "$GRAPHS_INPUT"\\
                         --output_folder "$DISTANCE_FOLDER" \\
                         --step {dist["dist_step"]} \\
+                        --wrap_dcd "$WRAP_DCD" \\
                         --max_water_distance {dist["dist_max_water_distance"]}"""
         if dist["dist_start"]:
             bash_script += f' --start {dist["dist_start"]}'
@@ -185,6 +189,7 @@ PLOT_PARAMETERS="{glob["plot_parameters"]}"
                             --selection "{graph['selection']}"\\
                             --plot_parameters "$PLOT_PARAMETERS" \\
                             --additional_donors "$DONORS" \\
+                            --wrap_dcd "$WRAP_DCD" \\
                             --additional_acceptors "$ACCEPTORS"'''
             if glob["start"]:
                 bash_script += f' --start {glob["start"]}'
@@ -302,12 +307,37 @@ if dcd:
 else:
     st.caption("*No DCD files are selected.*")
 
-wrap_dcd = st.checkbox(
-    "PBC wrap the trajectories",
-    value=True,
-    help="Apply periodic boundary condition wrapping to keep molecules inside the simulation box. Default is true.",
+
+wrap_dcd = st.selectbox(
+    "Apply PBC wrapping",
+    options=[None, "fast", "centered"],
+    index=1,
+    format_func=lambda x: "None (no wrapping)" if x is None else x,
+    help=(
+        "Apply periodic boundary condition (PBC) handling to the trajectory.\n\n"
+        "- 'fast': simple wrapping\n"
+        "- 'centered': unwrap + center + rewrap solvent\n"
+        "- None: no wrapping applied"
+    ),
 )
 
+write_wrapped_traj_to = None
+if wrap_dcd is not None:
+    if st.checkbox("Write PBC wrapped trajectories as new files"):
+        write_wrapped_traj_to = st.text_input(
+            "Output directory for wrapped trajectories",
+            value="",
+            placeholder="e.g. /path/to/output/",
+            help=(
+                "Path to a directory where wrapped trajectory files will be written. "
+            ),
+        ).strip()
+        st.caption(
+            f"**The PBC wrapped try will be written in:** `{write_wrapped_traj_to}`"
+        )
+
+        if write_wrapped_traj_to.strip() == "":
+            write_wrapped_traj_to = None
 
 selection = st.text_input(
     "Selection to perform the analysis on, in a form of an MDAnalysis selection sting. ",
@@ -939,6 +969,7 @@ env_params = {
     "psf": psf,
     "dcd": dcd,
     "wrap_dcd": wrap_dcd,
+    "write_wrapped_traj_to": write_wrapped_traj_to,
 }
 
 global_params = {
