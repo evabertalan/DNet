@@ -316,7 +316,7 @@ wrap_dcd = st.selectbox(
     help=(
         "Apply periodic boundary condition (PBC) handling to the trajectory.\n\n"
         "- 'fast': simple wrapping\n"
-        "- 'centered': unwrap + center + rewrap solvent\n"
+        "- 'centered': unwrap + center + rewrap solvent. This wrapping method is much slower than the fast option.\n"
         "- None: no wrapping applied"
     ),
 )
