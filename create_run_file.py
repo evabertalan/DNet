@@ -24,6 +24,9 @@ LOGFILE="$OUTPUT_FOLDER/dnet_{env['dnet_run_name']}.log"
 echo "===============================================================" >> "$LOGFILE"
 echo "$(date '+%Y-%m-%d %H:%M:%S'): Starting DNet Workflow ..." >> "$LOGFILE"
 
+echo "This log file corresponds to the run_{dnet_run_name} run file">> "$LOGFILE"
+
+
 # Global Files
 PSF_FILE="{env['psf']}"
 DCD_FILES=$(ls {env['dcd']})
@@ -41,6 +44,12 @@ DONORS="{glob["donors"]}"
 ACCEPTORS="{glob["acceptors"]}"
 STEP={glob["step"]}
 PLOT_PARAMETERS="{glob["plot_parameters"]}"
+
+echo "Calculation for the PSF file: {env['psf']}">> "$LOGFILE"
+echo "Calculation for the DCD files: $(ls {env['dcd']})">> "$LOGFILE"
+
+echo "The global H-bond occupancy is set to {glob["occupancy"]}. This value might be overwritten in specific H-bond calculations at a later step.">> "$LOGFILE"
+echo "......">> "$LOGFILE"
 
 """
 
