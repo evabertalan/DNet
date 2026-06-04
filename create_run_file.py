@@ -367,7 +367,7 @@ with c1:
         "Start",
         value=None,
         step=1,
-        help="Starting frame index for trajectory analysis. If not provided, starts from the first frame.",
+        help="Starting frame index for trajectory analysis. If not provided, starts from the first frame. It can take a negative value, e.g: -20000 reads the last 20000 frames of the trajectory.",
         key="start",
     )
 
@@ -376,7 +376,7 @@ with c2:
         "Stop",
         value=None,
         step=1,
-        help="Last frame index for trajectory analysis. If not provided, processes until the last frame. It can take a negative value, e.g: -20000 reads the last 20000 frames of the trajectory.",
+        help="Last frame index for trajectory analysis. If not provided, processes until the last frame.",
         key="stop",
     )
 
