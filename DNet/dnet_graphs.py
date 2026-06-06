@@ -168,6 +168,7 @@ class DNetGraphs:
             water_in_convex_hull=max_water,
             max_water=max_water,
             collect_angles=collect_angles,
+            exclude_backbone_backbone=True,
         )
         wba.compute_average_water_per_wire()
         if connected_component_root:

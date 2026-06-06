@@ -125,6 +125,7 @@ class WireAnalysis(NetworkAnalysis):
         allow_direct_bonds=True,
         water_in_convex_hull=False,
         collect_angles=False,
+        exclude_backbone_backbone=True,
     ):
 
         intervals_results = {}
@@ -134,6 +135,11 @@ class WireAnalysis(NetworkAnalysis):
         this_frame_table = {}
         no_direct_bonds = False
         self._allow_direct_bonds = allow_direct_bonds
+
+        if exclude_backbone_backbone:
+            backbone_filter = _np.array(
+                [(ids.split("-")[3] in ["O", "N"]) for ids in self._all_ids_atomwise]
+            )
 
         angles_per_frame = []
         for ts in self._universe.trajectory[self._trajectory_slice]:
@@ -210,6 +216,9 @@ class WireAnalysis(NetworkAnalysis):
                 da_pairs = _np.array([])
                 no_direct_bonds = False
 
+            da_pairs = da_pairs[
+                _np.logical_not(_np.all(backbone_filter[da_pairs], axis=1))
+            ]
             if self.check_angle:
                 all_coordinates = _np.vstack((selection_coordinates, water_coordinates))
                 da_hbonds, angle_data = _hf.check_angle(
