@@ -452,7 +452,7 @@ def H_bond_critera_element(key_index):
         )
 
     is_backbone = st.checkbox(
-        "Include backbone side chain H-bonds",
+        "Include backbone side chain H-bonds (direct backbone - backbone H-bonds are excluded, but water mediated connections between backbone groups are included)",
         value=False,
         key=f"is_backbone_{key_index}",
         help="Include interactions between backbone and sidechain atoms in the analysis.",
