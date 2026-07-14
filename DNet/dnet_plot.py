@@ -99,10 +99,17 @@ class DNetPlot:
             print(f"Error processing file {file}: {e}")
         return nodes
 
-    def _ax_util(self, ax, title=None, xlabel=None, ylabel=None, only_integers=False):
-        title_fs = 36
-        label_fs = 34
-        tick_fs = 32
+    def _ax_util(
+        self,
+        ax,
+        title=None,
+        xlabel=None,
+        ylabel=None,
+        only_integers=False,
+        title_fs=36,
+        label_fs=34,
+        tick_fs=32,
+    ):
         ax.set_title(title, fontsize=title_fs)
         ax.set_xlabel(xlabel, fontsize=label_fs)
         ax.set_ylabel(ylabel, fontsize=label_fs)
@@ -113,6 +120,33 @@ class DNetPlot:
         if only_integers:
             ax.yaxis.set_major_locator(MaxNLocator(integer=True))
         return ax
+
+    def _create_UNP_plot(self, unp_df, plot_formats):
+        counts = unp_df["num_Hbonds_per_res"].value_counts().sort_index()
+        fig, ax = plt.subplots(figsize=(8, 5))
+        self._ax_util(
+            ax,
+            title="Number of unique H-bonds per residue",
+            xlabel="UNP",
+            ylabel="Number of Residues",
+            title_fs=17,
+            label_fs=16,
+            tick_fs=14,
+        )
+
+        ax.bar(counts.index, counts.values, color="#3F51B5", alpha=0.8)
+        t = ax.set_xticks(counts.index)
+
+        plt.tight_layout()
+
+        for img_format in plot_formats:
+            fig.savefig(
+                Path(
+                    self.plot_folder,
+                    f"UNP_num_Hbonds_per_res_{self.sim_name}.{img_format}",
+                ),
+                format=img_format,
+            )
 
     def _shift_resid_index(self, node_names, shift=0):
         node_names = node_names.split(" - ")
@@ -566,16 +600,23 @@ class DNetPlot:
             for row in substates_per_edge:
                 f.write(" ".join(map(str, row)) + "\n")
 
-        pd.DataFrame(
-            unique_hbond_per_res,
-            columns=["amino_acid", "num_Hbonds_per_res"],
-        ).drop_duplicates().sort_values(by="amino_acid").to_csv(
+        unp_df = (
+            pd.DataFrame(
+                unique_hbond_per_res,
+                columns=["amino_acid", "num_Hbonds_per_res"],
+            )
+            .drop_duplicates()
+            .sort_values(by="amino_acid")
+        )
+        unp_df.to_csv(
             Path(
                 self.plot_folder,
                 f"{self.sim_name}_Hbonds_per_amino_acid_residuewise.csv",
             ),
             index=False,
         )
+
+        self._create_UNP_plot(unp_df, plot_formats)
 
 
 def main():
