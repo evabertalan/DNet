@@ -28,6 +28,12 @@ The final output of the tool is a summary figure for each H-bonding residue from
    ```bash
    ./install_dnet
    ```
+## How to cite:
+**DNET: A Graph-Based Tool and Workflow for Dynamic Hydrogen-Bond Networks and Applications for Visual Rhodopsins**
+Éva Bertalan, Matthew J. Rodrigues, Deborah Walter, Gebhard F. X. Schertler, and Ana-Nicoleta Bondar
+Journal of Chemical Theory and Computation Article ASAP
+[DOI: 10.1021/acs.jctc.5c01366](https://pubs.acs.org/doi/10.1021/acs.jctc.5c01366)
+
 
 ## Basic Setup to Run Code from the Command Line
 The easiest way to run the tool is to customize the [run_dnet](https://github.com/evabertalan/DNet/blob/main/run_dnet) script, which is included in this repo.
@@ -264,9 +270,4 @@ python3 -m dnet_plot --plot_folder 'results/plots/' --graphs_info_txt 'results/g
 * Use selection strings only include necessary atoms
 * Run the script on a high-performance machine for large trajectories
 
-## How to cite:
-DNET: A Graph-Based Tool and Workflow for Dynamic Hydrogen-Bond Networks and Applications for Visual Rhodopsins
-Éva Bertalan, Matthew J. Rodrigues, Deborah Walter, Gebhard F. X. Schertler, and Ana-Nicoleta Bondar
-Journal of Chemical Theory and Computation Article ASAP
-[DOI: 10.1021/acs.jctc.5c01366](https://pubs.acs.org/doi/10.1021/acs.jctc.5c01366)
 
