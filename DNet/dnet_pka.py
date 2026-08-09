@@ -80,10 +80,7 @@ class DNetPKa:
             self.pkas = self.pkatraj.results.pkas.sort_values(by="frame")
 
             # to handle duplicated column in the N and C terminus in case the residue has an other titratable atom
-            if self.pkas.columns.duplicated()[1]:
-                self.pkas = self.pkas.iloc[:, 1:]
-            if self.pkas.columns.duplicated()[-1]:
-                self.pkas = self.pkas.iloc[:, :-1]
+            self.pkas = self.pkas.loc[:, ~self.pkas.columns.duplicated()].copy()
 
         except Exception as e:
             print(f"Error computing pKa for trajectory: {e}")
@@ -335,7 +332,7 @@ def main():
     stats_filename = os.path.join(output_folder, f"pkas_stats_{base_name}.csv")
     dnet_pKa.get_pka_statistic(write_to_file=stats_filename)
 
-    external_data_file_name = os.path.join(output_folder, f"{base_name}_data.txt")
+    external_data_file_name = os.path.join(output_folder, f"{base_name}_pKa_data.txt")
     dnet_pKa.write_pka_to_external_data_file(external_data_file_name)
 
     if args.plot:

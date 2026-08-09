@@ -246,12 +246,17 @@ def dict2graph(bonds, residuewise=True):
     return g
 
 
+def _mdsel_to_resname(atom):
+    return f"{atom.segid}-{atom.resname}-{atom.resid}-{atom.name}"
+
+
 def check_angle(
     atoms_in_distance,
     heavy2hydrogen,
     local_coordinates,
     hydrogen_coordinates,
     cut_angle,
+    sel=None,
 ):
     pairs = np.asarray(atoms_in_distance)
     angle_check_index = []
@@ -274,11 +279,25 @@ def check_angle(
     angle_check_index = np.array(angle_check_index)
     bond_index = np.asarray(angle_check_index[angle_check.flatten()], dtype=np.int)
     hbond_pairs = pairs[bond_index]
-    return hbond_pairs
+
+    if sel:
+        pair_names = [
+            f"{_mdsel_to_resname(sel[p[0]])}_{_mdsel_to_resname(sel[p[1]])}"
+            for p in pairs[angle_check_index]
+        ]
+        angle_data = {
+            "pair_names": pair_names,
+            "angle_deviation": angles,
+            "angles": 180 - angles,
+        }
+    else:
+        angle_data = None
+
+    return hbond_pairs, angle_data
 
 
 def check_angle_water(
-    atoms_in_distance, oxygen_coordinates, hydrogen_coordinates, cut_angle
+    atoms_in_distance, oxygen_coordinates, hydrogen_coordinates, cut_angle, sel
 ):
     pairs = np.asarray(atoms_in_distance)
     a_index = np.repeat(pairs[:, 0], 4)
@@ -295,7 +314,21 @@ def check_angle_water(
     angle_check = angles <= cut_angle
     bond_index = angle_check.reshape(-1, 4).any(axis=1)
     hbond_pairs = pairs[bond_index]
-    return hbond_pairs
+
+    if sel:
+        pair_names = [
+            f"{_mdsel_to_resname(sel[p[0]])}_{_mdsel_to_resname(sel[p[1]])}"
+            for p in pairs
+        ]
+        angle_data = {
+            "pair_names": pair_names,
+            "angle_deviation": angles,
+            "angles": 180 - angles,
+        }
+    else:
+        angle_data = None
+
+    return hbond_pairs, angle_data
 
 
 def intervals(timeseries):

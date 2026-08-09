@@ -6,13 +6,10 @@ import warnings
 import numpy as np
 import networkx as nx
 from sklearn.decomposition import PCA
-import matplotlib.pyplot as plt
-from matplotlib import cm
-from matplotlib.colors import LinearSegmentedColormap, Normalize, BoundaryNorm
-from matplotlib.cm import ScalarMappable
-import matplotlib as mpl
 from pathlib import Path
 import ast
+import plotly.express as px
+import plotly.colors
 
 warnings.filterwarnings("ignore")
 
@@ -55,17 +52,17 @@ def get_plot_parameters(plot_parameters):
         "node_label_size": (
             plot_parameters["node_label_size"]
             if "node_label_size" in plot_parameters.keys()
-            else 12
+            else 15
         ),
         "edge_label_size": (
             plot_parameters["edge_label_size"]
             if "edge_label_size" in plot_parameters.keys()
-            else 10
+            else 15
         ),
         "node_size": (
             plot_parameters["node_size"]
             if "node_size" in plot_parameters.keys()
-            else 150
+            else 15
         ),
         "graph_color": (
             plot_parameters["graph_color"]
@@ -90,7 +87,7 @@ def get_plot_parameters(plot_parameters):
         "plot_title_fontsize": (
             plot_parameters["plot_title_fontsize"]
             if "plot_title_fontsize" in plot_parameters.keys()
-            else 20
+            else 30
         ),
         "plot_label_fontsize": (
             plot_parameters["plot_label_fontsize"]
@@ -182,10 +179,17 @@ def get_node_name_pats(node, with_group=False):
             node.split("-")[0],
             node.split("-")[1],
             str(int(node.split("-")[2])),
-            node.split("-")[3],
+            f'-{node.split("-")[3]}',
+        )
+    elif len(node.split("-")) == 4:
+        return (
+            node.split("-")[0],
+            node.split("-")[1],
+            str(int(node.split("-")[2])),
+            f'-{node.split("-")[3]}',
         )
     else:
-        return node.split("-")[0], node.split("-")[1], str(int(node.split("-")[2]))
+        return node.split("-")[0], node.split("-")[1], str(int(node.split("-")[2])), ""
 
 
 def get_edge_params(wba, edges):
@@ -243,15 +247,61 @@ def get_connected_components(graph):
 
 
 def create_plot(title="", xlabel="", ylabel="", plot_parameters={}):
-    fig, ax = plt.subplots(figsize=plot_parameters["figsize"])
-    ax.spines["right"].set_visible(False)
-    ax.spines["top"].set_visible(False)
-    ax.set_title(title, fontsize=plot_parameters["plot_title_fontsize"])
-    ax.set_xlabel(xlabel, fontsize=plot_parameters["plot_label_fontsize"])
-    ax.set_ylabel(ylabel, fontsize=plot_parameters["plot_label_fontsize"])
-    ax.tick_params(axis="x", labelsize=plot_parameters["plot_tick_fontsize"])
-    ax.tick_params(axis="y", labelsize=plot_parameters["plot_tick_fontsize"])
-    return fig, ax
+    fig = px.scatter()  # empty figure, add data later
+
+    fig.update_layout(
+        title=dict(
+            text=title,
+            font=dict(size=plot_parameters["plot_title_fontsize"]),
+            x=0.5,
+            xanchor="center",
+            y=0.95,  # vertical position (1=top of figure)
+            yanchor="top",
+        ),
+        margin=dict(t=100),
+        xaxis_title=dict(
+            text=xlabel, font=dict(size=plot_parameters["plot_label_fontsize"])
+        ),
+        yaxis_title=dict(
+            text=ylabel, font=dict(size=plot_parameters["plot_label_fontsize"])
+        ),
+        width=plot_parameters["figsize"][0] * 100,
+        height=plot_parameters["figsize"][1] * 100,
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        xaxis=dict(
+            showgrid=False,
+            zeroline=False,
+            showline=True,
+            linecolor="black",
+            showticklabels=True,
+            ticks="outside",
+            linewidth=2,
+        ),
+        yaxis=dict(
+            showgrid=False,
+            zeroline=False,
+            showline=True,
+            linecolor="black",
+            showticklabels=True,
+            ticks="outside",
+            linewidth=2,
+        ),
+    )
+
+    fig.update_xaxes(
+        tickfont=dict(size=plot_parameters["plot_tick_fontsize"]),
+        showline=True,
+        mirror=False,
+    )
+
+    fig.update_yaxes(
+        tickfont=dict(size=plot_parameters["plot_tick_fontsize"]),
+        showline=True,
+        mirror=False,
+    )
+
+    return fig
 
 
 def read_propka_file(file_path, selected_nodes):
@@ -288,14 +338,17 @@ def read_propka_file(file_path, selected_nodes):
 def read_color_data_file(pdb_id, pdb_root_folder, selected_nodes):
     file_endings = ["_data.txt", "_color.txt", "data.txt", "color.txt"]
 
+    color_file = None
+    directory = Path(pdb_root_folder)
     for ending in file_endings:
-        if os.path.isfile(f"{pdb_root_folder}/{pdb_id}{ending}"):
-            color_file = f"{pdb_root_folder}/{pdb_id}{ending}"
-            break
-        else:
-            color_file = ""
+        for file_path in directory.glob(f"{pdb_id}*{ending}"):
+            if os.path.isfile(file_path):
+                color_file = file_path
+                break
+            else:
+                color_file = None
 
-    if color_file.endswith("txt"):
+    if color_file:
         content = np.loadtxt(color_file, dtype=str)
     else:
         return None
@@ -387,52 +440,66 @@ def calculate_connected_compontents_coordinates(
 
 
 def get_color_map(color_info, color_map="viridis", center=None):
-    cmap = cm.get_cmap(color_map, len(color_info))
+    if not color_info:
+        return {}, color_map, None
+
     _vals = np.array(list(color_info.values()), dtype=float)
-    if len(color_info):
-        if len(color_info) > 1:
-            scaled_values = (_vals - _vals.min()) / (_vals.max() - _vals.min())
-            value_colors = {
-                key: cmap(scaled_values[i])
-                for i, (key, values) in enumerate(color_info.items())
-            }
-        else:
-            value_colors = {
-                key: cmap(_vals[i])
-                for i, (key, values) in enumerate(color_info.items())
-            }
-        if center:
-            max_val = np.max([np.abs(_vals.min()), np.abs(_vals.max())])
-            norm = mpl.colors.Normalize(vmin=-1 * max_val, vmax=max_val)
-        else:
-            norm = mpl.colors.Normalize(vmin=_vals.min(), vmax=_vals.max())
-        return value_colors, cmap, norm
+    vmin, vmax = _vals.min(), _vals.max()
+
+    if center is not None:
+        max_dist = np.max(np.abs(_vals - center))
+        cmin, cmax = center - max_dist, center + max_dist
     else:
-        return {}, cmap, None
+        cmin, cmax = vmin, vmax
+
+    if cmax == cmin:
+        scaled_vals = np.zeros_like(_vals)
+    else:
+        scaled_vals = (_vals - cmin) / (cmax - cmin)
+
+    sampled_colors = plotly.colors.sample_colorscale(color_map, scaled_vals.tolist())
+
+    value_colors = {key: sampled_colors[i] for i, key in enumerate(color_info.keys())}
+    return value_colors, color_map, (cmin, cmax)
 
 
 def get_edge_color_map(values):
-    isint = all(isinstance(x, int) for x in values)
+    isint = all(isinstance(x, (int, np.integer)) for x in values)
+    vmin, vmax = min(values), max(values)
+
     if isint:
-        low_color = "#C0C0C0"  # light blue
-        high_color = "#002F6C"  # dark blue
+        low_color = "#C0C0C0"
+        high_color = "#002F6C"
 
-        # low_color = "#D6E6FF"  # light blue
-        # high_color = "#1C189C"  # dark blue
-        unique_values = np.arange(min(np.unique(values)), max(np.unique(values)) + 1)
-        cmap = LinearSegmentedColormap.from_list(
-            "custom", [low_color, high_color], N=len(unique_values)
-        )
-        unique_values = np.insert(unique_values, len(unique_values), max(values) + 1)
-        norm = BoundaryNorm(unique_values, cmap.N)
+        unique_values = np.arange(vmin, vmax + 1)
+        n_colors = len(unique_values)
+        if n_colors > 1:
+            colors = plotly.colors.n_colors(
+                plotly.colors.hex_to_rgb(low_color),
+                plotly.colors.hex_to_rgb(high_color),
+                n_colors,
+            )
+            colors = [plotly.colors.label_rgb(c) for c in colors]
+
+        else:
+            colors = [plotly.colors.label_rgb(plotly.colors.hex_to_rgb(low_color))]
+
+        custom_colorscale = []
+        for i in range(n_colors):
+            start = i / n_colors
+            end = (i + 1) / n_colors
+            custom_colorscale.extend([[start, colors[i]], [end, colors[i]]])
+
+        vmax = vmax + 1
     else:
-        low_color = "#E5E5E5"  # light gray
-        high_color = "#424242"  # dark gray
-        norm = Normalize(vmin=min(values), vmax=max(values))
-        cmap = LinearSegmentedColormap.from_list("custom", [low_color, high_color])
+        low_color = "#E5E5E5"
+        high_color = "#424242"
+        custom_colorscale = [
+            [0, plotly.colors.label_rgb(plotly.colors.hex_to_rgb(low_color))],
+            [1, plotly.colors.label_rgb(plotly.colors.hex_to_rgb(high_color))],
+        ]
 
-    sm = ScalarMappable(cmap=cmap, norm=norm)
-    return cmap, norm, sm
+    return custom_colorscale, vmin, vmax
 
 
 def get_water_coordinates(protein_chain, res_index):

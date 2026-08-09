@@ -17,9 +17,13 @@
 #    please cite:
 #
 #    Malte Siemers, Michalis Lazaratos, Konstantina Karathanou,
-#    Federico Guerra, Leonid Brown, and Ana-Nicoleta Bondar.
+#    Federico Guerra, Leonid Bfrown, and Ana-Nicoleta Bondar.
 #    Bridge: A graph-based algorithm to analyze dynamic H-bond networks
 #    in membrane proteins, Journal of Chemical Theory and Computation, 2019.
+
+import warnings
+
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="MDAnalysis.*")
 
 from . import helpfunctions as _hf
 from .network import NetworkAnalysis
@@ -32,8 +36,7 @@ from scipy.sparse.csgraph import dijkstra
 from collections import OrderedDict as _odict
 from matplotlib.ticker import MaxNLocator
 import warnings
-
-warnings.filterwarnings("ignore", category=DeprecationWarning, module="MDAnalysis.*")
+import pandas as pd
 
 # import matplotlib
 # matplotlib.use('TKAgg', warn=False)
@@ -63,7 +66,8 @@ class WireAnalysis(NetworkAnalysis):
         residuewise=True,
         add_donors_without_hydrogen=False,
         restore_filename=None,
-        wrap_dcd=False,
+        wrap_dcd=None,
+        write_wrapped_traj_to=None,
     ):
 
         super(WireAnalysis, self).__init__(
@@ -85,6 +89,7 @@ class WireAnalysis(NetworkAnalysis):
             add_donors_without_hydrogen=add_donors_without_hydrogen,
             restore_filename=restore_filename,
             wrap_dcd=wrap_dcd,
+            write_wrapped_traj_to=write_wrapped_traj_to,
         )
 
         if restore_filename != None:
@@ -114,205 +119,13 @@ class WireAnalysis(NetworkAnalysis):
         )
         self.da_trans = da_ind[da_inv]
 
-    def set_water_wires_csr(
-        self, max_water=5, allow_direct_bonds=True, water_in_convex_hull=False
-    ):
-
-        distances = {}
-        path_hashs = {}
-        frame_count = 0
-        hash_table = {}
-        no_direct_bonds = False
-        self._allow_direct_bonds = allow_direct_bonds
-        for ts in self._universe.trajectory[self._trajectory_slice]:
-
-            water_coordinates = self._water.positions
-            selection_coordinates = self._da_selection.positions
-            selection_tree = _sp.cKDTree(selection_coordinates)
-            try:
-                d_tree = _sp.cKDTree(self._donors.positions)
-                a_tree = _sp.cKDTree(self._acceptors.positions)
-            except:
-                no_direct_bonds = True
-            hydrogen_coordinates = self._hydrogen.positions
-
-            water_tree = _sp.cKDTree(water_coordinates, leafsize=32)
-            local_water_index = []
-            [
-                local_water_index.extend(l)
-                for l in water_tree.query_ball_point(
-                    selection_coordinates, float(max_water + 1) * self.distance / 2.0
-                )
-            ]
-            local_water_index = _np.unique(local_water_index)
-            local_water_coordinates = water_coordinates[local_water_index]
-
-            if water_in_convex_hull:
-                hull = _sp.Delaunay(selection_coordinates)
-                local_water_index_hull = (
-                    hull.find_simplex(local_water_coordinates) != -1
-                ).nonzero()[0]
-                local_water_coordinates = water_coordinates[
-                    local_water_index[local_water_index_hull]
-                ]
-
-            local_water_tree = _sp.cKDTree(local_water_coordinates)
-
-            local_water_index += self._first_water_id
-            local_pairs = [
-                (i, local_water_index[j])
-                for i, bla in enumerate(
-                    selection_tree.query_ball_tree(local_water_tree, self.distance)
-                )
-                for j in bla
-            ]
-            local_water_index -= self._first_water_id
-            water_pairs = [
-                (local_water_index[p[0]], local_water_index[p[1]])
-                for p in local_water_tree.query_pairs(self.distance)
-            ]
-            if not no_direct_bonds:
-                da_pairs = _np.array(
-                    [
-                        [i, j]
-                        for i, donors in enumerate(
-                            a_tree.query_ball_tree(d_tree, self.distance)
-                        )
-                        for j in donors
-                    ]
-                )
-                da_pairs[:, 0] += self._nb_donors
-            else:
-                da_pairs = _np.array([])
-            if self.check_angle:
-                all_coordinates = _np.vstack((selection_coordinates, water_coordinates))
-                da_hbonds = _hf.check_angle(
-                    da_pairs,
-                    self.heavy2hydrogen,
-                    all_coordinates,
-                    hydrogen_coordinates,
-                    self.cut_angle,
-                )
-                water_hbonds = _hf.check_angle_water(
-                    water_pairs,
-                    water_coordinates,
-                    hydrogen_coordinates[self._first_water_hydrogen_id :],
-                    self.cut_angle,
-                )
-                local_hbonds = _hf.check_angle(
-                    local_pairs,
-                    self.heavy2hydrogen,
-                    all_coordinates,
-                    hydrogen_coordinates,
-                    self.cut_angle,
-                )
-            else:
-                da_hbonds = da_pairs
-                water_hbonds = water_pairs
-                local_hbonds = local_pairs
-            da_hbonds = _np.sort(da_hbonds)
-            water_hbonds = _np.sort(water_hbonds) + self._first_water_id
-            local_hbonds = _np.sort(_np.array(local_hbonds))
-            local_hbonds[:, 0] = self.da_trans[local_hbonds[:, 0]]
-            if no_direct_bonds:
-                hbonds = _np.vstack((local_hbonds, water_hbonds))
-            else:
-                hbonds = _np.vstack(
-                    (_np.vstack((da_hbonds, local_hbonds)), water_hbonds)
-                )
-            no_direct_bonds = False
-            water_da = _np.zeros(len(hbonds), dtype=bool)
-            water_da[len(da_hbonds) : len(da_hbonds) + len(local_hbonds)] = True
-            water_water = _np.zeros(len(hbonds), dtype=bool)
-            water_water[len(da_hbonds) + len(local_hbonds) :] = True
-            uniques, rowsncols = _np.unique(hbonds, return_inverse=True)
-            rows, cols = rowsncols.reshape(hbonds.shape).T
-            nb_nodes = uniques.size
-            residues = (uniques < self._first_water_id).nonzero()[0]
-            data = _np.ones(len(hbonds), dtype=_np.float)
-            g = csr_matrix((data, (rows, cols)), shape=(nb_nodes, nb_nodes))
-            local_rows, local_cols = rows[water_da], cols[water_da]
-            g[local_rows, local_cols] = _np.inf
-            already_checked = []
-            for source in residues:
-                source_index = local_rows == source
-                if source_index.sum() == 0:
-                    continue
-                g[local_rows[source_index], local_cols[source_index]] = 1.0
-                lengths, predecessors = dijkstra(
-                    g,
-                    directed=False,
-                    indices=source,
-                    unweighted=False,
-                    limit=max_water,
-                    return_predecessors=True,
-                )
-                g[local_rows[source_index], local_cols[source_index]] = _np.inf
-                in_range = _np.nonzero(lengths <= max_water)[0]
-                target_index = _np.in1d(local_cols, in_range)
-                targets = _np.unique(local_rows[target_index])
-                for target in targets:
-                    if target in already_checked or target == source:
-                        continue
-                    target_water = local_cols[(local_rows == target) & target_index]
-                    length_index = _np.argmin(lengths[target_water])
-                    length = lengths[target_water][length_index]
-                    wire = uniques[
-                        [
-                            _hf.predecessor_recursive_1d(
-                                ii, predecessors, target_water[length_index]
-                            )
-                            for ii in range(int(length))[::-1]
-                        ]
-                        + [target]
-                    ]
-                    ai, bi = _np.sort(uniques[[source, target]])
-                    wire_hash = hash(wire.tobytes())
-                    hash_table[wire_hash] = wire
-                    wire_info = self._all_ids[ai] + ":" + self._all_ids[bi]
-                    check = self._all_ids[bi] + ":" + self._all_ids[ai]
-                    if check in distances:
-                        wire_info = check
-                    try:
-                        distances[wire_info][frame_count] = length
-                        path_hashs[wire_info][frame_count] = wire_hash
-                    except KeyError:
-                        distances[wire_info] = (
-                            _np.ones(self.nb_frames, dtype=int) * _np.inf
-                        )
-                        path_hashs[wire_info] = _np.arange(self.nb_frames, dtype=int)
-                        distances[wire_info][frame_count] = length
-                        path_hashs[wire_info][frame_count] = wire_hash
-                already_checked.append(source)
-
-            if allow_direct_bonds:
-                for a, b in da_hbonds:
-                    wire_info = self._all_ids[a] + ":" + self._all_ids[b]
-                    check = self._all_ids[b] + ":" + self._all_ids[a]
-                    if check in distances:
-                        wire_info = check
-                    try:
-                        path_hashs[wire_info][frame_count] = -1
-                        distances[wire_info][frame_count] = 0
-                    except:
-                        distances[wire_info] = (
-                            _np.ones(self.nb_frames, dtype=_np.int) * _np.inf
-                        )
-                        distances[wire_info][frame_count] = 0
-                        path_hashs[wire_info] = _np.arange(
-                            self.nb_frames, dtype=_np.int
-                        )
-                        path_hashs[wire_info][frame_count] = -1
-            frame_count += 1
-        self._set_results({key: distances[key] != _np.inf for key in distances})
-        self.wire_lengths = distances
-        self.hashs = path_hashs
-        self.hash_table = hash_table
-        self.occupancy_dict = {}
-        self.first_frame_dict = {}
-
     def set_water_wires(
-        self, max_water=5, allow_direct_bonds=True, water_in_convex_hull=False
+        self,
+        max_water=5,
+        allow_direct_bonds=True,
+        water_in_convex_hull=False,
+        collect_angles=False,
+        exclude_backbone_backbone=True,
     ):
 
         intervals_results = {}
@@ -322,6 +135,13 @@ class WireAnalysis(NetworkAnalysis):
         this_frame_table = {}
         no_direct_bonds = False
         self._allow_direct_bonds = allow_direct_bonds
+
+        if exclude_backbone_backbone:
+            backbone_filter = _np.array(
+                [(ids.split("-")[3] in ["O", "N"]) for ids in self._all_ids_atomwise]
+            )
+
+        angles_per_frame = []
         for ts in self._universe.trajectory[self._trajectory_slice]:
 
             water_coordinates = self._water.positions
@@ -396,31 +216,46 @@ class WireAnalysis(NetworkAnalysis):
                 da_pairs = _np.array([])
                 no_direct_bonds = False
 
+            da_pairs = da_pairs[
+                _np.logical_not(_np.all(backbone_filter[da_pairs], axis=1))
+            ]
             if self.check_angle:
                 all_coordinates = _np.vstack((selection_coordinates, water_coordinates))
-                da_hbonds = _hf.check_angle(
+                da_hbonds, angle_data = _hf.check_angle(
                     da_pairs,
                     self.heavy2hydrogen,
                     all_coordinates,
                     hydrogen_coordinates,
                     self.cut_angle,
+                    self._da_selection,
                 )
+
                 if water_pairs.size > 0:
-                    water_hbonds = _hf.check_angle_water(
+                    water_hbonds, angle_data_water = _hf.check_angle_water(
                         water_pairs,
                         water_coordinates,
                         hydrogen_coordinates[self._first_water_hydrogen_id :],
                         self.cut_angle,
+                        self._water,
+                    )
+                    angle_data["pair_names"] += angle_data_water["pair_names"]
+                    angle_data["angles"] = list(angle_data["angles"]) + list(
+                        angle_data_water["angles"]
                     )
                 else:
                     water_hbonds = _np.array([])
                 if local_pairs.size > 0:
-                    local_hbonds = _hf.check_angle(
+                    local_hbonds, angle_data_local = _hf.check_angle(
                         local_pairs,
                         self.heavy2hydrogen,
                         all_coordinates,
                         hydrogen_coordinates,
                         self.cut_angle,
+                        (self._da_selection + self._water).unique,
+                    )
+                    angle_data["pair_names"] += angle_data_local["pair_names"]
+                    angle_data["angles"] = angle_data["angles"] + list(
+                        angle_data_local["angles"]
                     )
                 else:
                     local_hbonds = _np.array([])
@@ -429,6 +264,9 @@ class WireAnalysis(NetworkAnalysis):
                 water_hbonds = water_pairs
                 local_hbonds = local_pairs
 
+            if collect_angles:
+                frame_angles = dict(zip(angle_data["pair_names"], angle_data["angles"]))
+                angles_per_frame.append(frame_angles)
             da_hbonds = _np.sort(da_hbonds)
             water_hbonds = _np.sort(water_hbonds) + self._first_water_id
 
@@ -516,12 +354,17 @@ class WireAnalysis(NetworkAnalysis):
                         intervals_results[wire_info][frame_count] = -1
 
             frame_count += 1
+
         self._set_results({key: results[key] != _np.inf for key in results})
         self.wire_lengths = results
         self.hashs = intervals_results
         self.hash_table = this_frame_table
         self.occupancy_dict = {}
         self.first_frame_dict = {}
+        if collect_angles and len(angles_per_frame):
+            df = pd.DataFrame(angles_per_frame).round(1)
+            return df
+        return None
 
     def set_explicit_water_wires(
         self, max_water=5, allow_direct_bonds=True, water_in_convex_hull=False

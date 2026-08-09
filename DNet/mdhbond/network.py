@@ -61,7 +61,8 @@ class NetworkAnalysis(BasicFunctionality):
         residuewise=True,
         add_donors_without_hydrogen=False,
         restore_filename=None,
-        wrap_dcd=False,
+        wrap_dcd=None,
+        write_wrapped_traj_to=None,
     ):
 
         super(NetworkAnalysis, self).__init__(
@@ -74,6 +75,7 @@ class NetworkAnalysis(BasicFunctionality):
             ions=ions,
             restore_filename=restore_filename,
             wrap_dcd=wrap_dcd,
+            write_wrapped_traj_to=write_wrapped_traj_to,
         )
         if restore_filename != None:
             return
@@ -193,12 +195,16 @@ class NetworkAnalysis(BasicFunctionality):
     def filter_connected_component(
         self, root, atomwise_whole_residue=False, use_filtered=True
     ):
+
         if use_filtered:
             graph = self.filtered_graph
         else:
             graph = self.initial_graph
         if len(graph.nodes()) == 0:
-            raise AssertionError("nothing to filter!")
+            print("Graph is empty. Nothing to filter!")
+            self.filtered_graph = _nx.Graph()
+            return
+
         if (not self.residuewise) and atomwise_whole_residue:
             start_points = []
             residue = root.split("-")[:3]
@@ -206,7 +212,10 @@ class NetworkAnalysis(BasicFunctionality):
                 if node.split("-")[:3] == residue:
                     start_points.append(node)
         if root not in graph.nodes():
-            raise AssertionError("The root node is not in the current graph")
+            print("The root node is not in the current graph")
+            self.filtered_graph = _nx.Graph()
+            return
+
         if (not self.residuewise) and atomwise_whole_residue:
             components = []
             for c in _nx.connected_components(graph):
@@ -232,12 +241,21 @@ class NetworkAnalysis(BasicFunctionality):
         else:
             graph = self.initial_graph
         if len(graph.nodes()) == 0:
-            raise AssertionError("nothing to filter!")
+            print("Graph is empty. Nothing to filter!")
+            self.filtered_graph = _nx.Graph()
+
         if start not in graph.nodes():
-            raise AssertionError("The start node is not in the graph")
+            print(
+                f"WARNING: path search in not possible. The start node is not in the graph in {start.split('-')[0]}"
+            )
+            self.filtered_graph = _nx.Graph()
         if goal not in graph.nodes():
-            raise AssertionError("The goal node is not in the graph")
-        for component in _nx.connected_component_subgraphs(graph):
+            print(
+                f"WARNING: path search in not possible. The goal node is not in the graph in {goal.split('-')[0]}"
+            )
+            self.filtered_graph = _nx.Graph()
+        for c in _nx.connected_components(graph):
+            component = graph.subgraph(c).copy()
             if start in component.nodes():
                 break
         try:
@@ -246,13 +264,24 @@ class NetworkAnalysis(BasicFunctionality):
             else:
                 paths = _nx.all_simple_paths(component, start, goal, cutoff=max_len)
         except:
-            raise AssertionError("start and goal nodes are not connected")
+            print(
+                f"WARNING: path search in not possible. Stars and end nodes are not connected in {start.split('-')[0]} and {goal.split('-')[0]}"
+            )
+            self.filtered_graph = _nx.Graph()
+
         shortest_graph = _nx.Graph()
-        for path in paths:
-            shortest_graph.add_edges_from(_hf.pairwise(path))
-        self.applied_filters["shortest_paths"] = (start, goal)
-        self.filtered_graph = shortest_graph
-        self._generate_filtered_results_from_filtered_graph()
+        try:
+            if _nx.has_path(component, start, goal):
+                for path in paths:
+                    shortest_graph.add_edges_from(_hf.pairwise(path))
+                self.applied_filters["shortest_paths"] = (start, goal)
+                self.filtered_graph = shortest_graph
+                self._generate_filtered_results_from_filtered_graph()
+        except:
+            print(
+                f"WARNING: path search in not possible. Target {goal} cannot be reached from given sources {start}"
+            )
+            self.filtered_graph = _nx.Graph()
 
     def filter_single_path(self, *nodes, use_filtered=True):
         if use_filtered:

@@ -7,6 +7,7 @@ from scipy.signal import find_peaks
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 import os
+import json
 
 
 class DNetPlot:
@@ -26,19 +27,27 @@ class DNetPlot:
         self.graph_nodes = self._get_H_bond_nodes(graphs_info_txt)
         pKa_nodes = [("-").join(node.split("-")[0:3]) for node in self.graph_nodes]
 
-        pKas = pd.read_csv(pKas_for_frame_csv, index_col="frame")
-        pKas = self._handle_HSE(self.graph_nodes, pKas)
-        self.pKas = pKas.loc[:, pKas.columns.isin(pKa_nodes)][::step]
-        self.pKas.to_csv(Path(self.plot_folder, f"pKa_nodes_per_freame_{sim_name}.csv"))
+        if pKas_for_frame_csv and Path(pKas_for_frame_csv).exists():
+            pKas = pd.read_csv(pKas_for_frame_csv, index_col="frame")
+            pKas = self._handle_HSE(self.graph_nodes, pKas)
+            self.pKas = pKas.loc[:, pKas.columns.isin(pKa_nodes)][::step]
+            self.pKas.to_csv(
+                Path(self.plot_folder, f"pKa_nodes_per_frame_{sim_name}.csv")
+            )
+        else:
+            print(
+                "No pKa time series file was found. Module continues without plotting pKa values."
+            )
+            self.pKas = None
 
         self.distances = pd.read_csv(pair_distances_csv, index_col=0)
         self.distances.to_csv(
-            Path(self.plot_folder, f"edge_distances_per_freame_{sim_name}.csv")
+            Path(self.plot_folder, f"edge_distances_per_frame_{sim_name}.csv")
         )
 
         self.water_numbers = pd.read_csv(water_within_csv, index_col=0)
         self.water_numbers.to_csv(
-            Path(self.plot_folder, f"water_aroun_atom_per_freame_{sim_name}.csv")
+            Path(self.plot_folder, f"water_around_atom_per_frame_{sim_name}.csv")
         )
 
         total_water_around_res = pd.read_csv(total_water_within_csv, index_col=0)
@@ -51,7 +60,7 @@ class DNetPlot:
         self.total_water_around_res.to_csv(
             Path(
                 self.plot_folder,
-                f"total_water_around_res_per_freame_{sim_name}.csv",
+                f"total_water_around_res_per_frame_{sim_name}.csv",
             )
         )
 
@@ -90,10 +99,17 @@ class DNetPlot:
             print(f"Error processing file {file}: {e}")
         return nodes
 
-    def _ax_util(self, ax, title=None, xlabel=None, ylabel=None, only_integers=False):
-        title_fs = 36
-        label_fs = 34
-        tick_fs = 32
+    def _ax_util(
+        self,
+        ax,
+        title=None,
+        xlabel=None,
+        ylabel=None,
+        only_integers=False,
+        title_fs=36,
+        label_fs=34,
+        tick_fs=32,
+    ):
         ax.set_title(title, fontsize=title_fs)
         ax.set_xlabel(xlabel, fontsize=label_fs)
         ax.set_ylabel(ylabel, fontsize=label_fs)
@@ -104,6 +120,33 @@ class DNetPlot:
         if only_integers:
             ax.yaxis.set_major_locator(MaxNLocator(integer=True))
         return ax
+
+    def _create_UNP_plot(self, unp_df, plot_formats):
+        counts = unp_df["num_Hbonds_per_res"].value_counts().sort_index()
+        fig, ax = plt.subplots(figsize=(8, 5))
+        self._ax_util(
+            ax,
+            title="Number of unique H-bonds per residue",
+            xlabel="UNP",
+            ylabel="Number of Residues",
+            title_fs=17,
+            label_fs=16,
+            tick_fs=14,
+        )
+
+        ax.bar(counts.index, counts.values, color="#3F51B5", alpha=0.8)
+        t = ax.set_xticks(counts.index)
+
+        plt.tight_layout()
+
+        for img_format in plot_formats:
+            fig.savefig(
+                Path(
+                    self.plot_folder,
+                    f"UNP_num_Hbonds_per_res_{self.sim_name}.{img_format}",
+                ),
+                format=img_format,
+            )
 
     def _shift_resid_index(self, node_names, shift=0):
         node_names = node_names.split(" - ")
@@ -169,7 +212,7 @@ class DNetPlot:
         frame_to_time=100,
         pmf_last_nth_frames=20000,
         plot_formats=["png"],
-        res_id_label_shift=0,
+        res_id_label_shift={},
     ):
 
         pKa_color = "#227351"
@@ -185,10 +228,20 @@ class DNetPlot:
         substates_per_edge = []
 
         for graph_node in self.graph_nodes:
+
+            res_id_offset = (
+                int(res_id_label_shift[graph_node.split("-")[0]])
+                if graph_node.split("-")[0] in res_id_label_shift.keys()
+                else 0
+            )
+
             graph_node = ("-").join(graph_node.split("-")[0:3])
             total_number_of_states = 0
 
-            pKa_column = graph_node if graph_node in self.pKas.columns else None
+            if self.pKas is not None and graph_node in self.pKas.columns:
+                pKa_column = graph_node
+            else:
+                pKa_column = None
 
             dist_columns = [
                 col
@@ -240,7 +293,7 @@ class DNetPlot:
                 )
                 ax[row, 0] = self._ax_util(
                     ax[0, 0],
-                    title=self._shift_resid_index(pKa_column, res_id_label_shift),
+                    title=self._shift_resid_index(pKa_column, res_id_offset),
                     xlabel="Time (ns)",
                     ylabel="pKa",
                 )
@@ -288,7 +341,7 @@ class DNetPlot:
             )
             ax[row, 0] = self._ax_util(
                 ax[row, 0],
-                title=self._shift_resid_index(graph_node, res_id_label_shift),
+                title=f"total # of waters within 3.5 Å of {self._shift_resid_index(graph_node, res_id_offset)}",
                 xlabel="Time (ns)",
                 ylabel="#waters",
                 only_integers=True,
@@ -344,7 +397,7 @@ class DNetPlot:
                 )
                 ax[x, 0] = self._ax_util(
                     ax[x, 0],
-                    title=f"# of waters within 3.5 Å of {self._shift_resid_index(wat_col, res_id_label_shift)}",
+                    title=f"# of waters within 3.5 Å of {self._shift_resid_index(wat_col, res_id_offset)}",
                     xlabel="Time (ns)",
                     ylabel="#waters",
                     only_integers=True,
@@ -407,14 +460,14 @@ class DNetPlot:
                 )
                 ax[x, 0] = self._ax_util(
                     ax[x, 0],
-                    title=self._shift_resid_index(dist_col, res_id_label_shift),
+                    title=self._shift_resid_index(dist_col, res_id_offset),
                     xlabel="Time (ns)",
                     ylabel="Distance (Å)",
                 )
 
                 # in case .txt format is requested
                 # H_bond_df = pd.DataFrame(data={'time': self.distances.index / frame_to_time, 'distance': self.distances[og_column_name]})
-                # H_bond_df.to_csv(Path(self.plot_folder, f"H_bond_distance_time_series_{self.sim_name}_{self._shift_resid_index(dist_col.replace(' - ', '__'), res_id_label_shift)}.txt"), sep='\t', index=False)
+                # H_bond_df.to_csv(Path(self.plot_folder, f"H_bond_distance_time_series_{self.sim_name}_{self._shift_resid_index(dist_col.replace(' - ', '__'), res_id_offset)}.txt"), sep='\t', index=False)
 
                 ax[x, 1].hist(
                     self.distances[og_column_name],
@@ -472,7 +525,7 @@ class DNetPlot:
                 pmfs.to_csv(
                     Path(
                         self.plot_folder,
-                        f"PMF_{self.sim_name}_{self._shift_resid_index(dist_col.replace(' - ', '__'), res_id_label_shift)}.csv",
+                        f"PMF_{self.sim_name}_{self._shift_resid_index(dist_col.replace(' - ', '__'), res_id_offset)}.csv",
                     )
                 )
 
@@ -480,7 +533,7 @@ class DNetPlot:
                 # pmfs.to_csv(
                 #     Path(
                 #         self.plot_folder,
-                #         f"PMF_{self.sim_name}_{self._shift_resid_index(dist_col.replace(' - ', '__'), res_id_label_shift)}.txt",), sep='\t', index=False
+                #         f"PMF_{self.sim_name}_{self._shift_resid_index(dist_col.replace(' - ', '__'), res_id_offset)}.txt",), sep='\t', index=False
                 # )
 
                 ax[x, 3].plot(PMF, bin_centers, color=dist_color, linewidth=2)
@@ -509,12 +562,17 @@ class DNetPlot:
             unique_hbond_per_res.append([graph_node, len(unique_res)])
 
             # print("total_number_of_states", total_number_of_states)
-            fig.tight_layout(h_pad=4.0)
+            fig.suptitle(
+                self._shift_resid_index(graph_node, res_id_offset),
+                fontsize=text_fs * 1.2,
+            )
+            fig.tight_layout(rect=[0, 0, 1, 0.97])
+            # fig.tight_layout(h_pad=4.0)
             for img_format in plot_formats:
                 fig.savefig(
                     Path(
                         self.plot_folder,
-                        f"{self.sim_name}_{self._shift_resid_index(graph_node, res_id_label_shift)}_dist_combined.{img_format}",
+                        f"{self.sim_name}_{self._shift_resid_index(graph_node, res_id_offset)}_dist_combined.{img_format}",
                     ),
                     format=img_format,
                 )
@@ -542,16 +600,23 @@ class DNetPlot:
             for row in substates_per_edge:
                 f.write(" ".join(map(str, row)) + "\n")
 
-        pd.DataFrame(
-            unique_hbond_per_res,
-            columns=["amino_acid", "num_Hbonds_per_res"],
-        ).drop_duplicates().sort_values(by="amino_acid").to_csv(
+        unp_df = (
+            pd.DataFrame(
+                unique_hbond_per_res,
+                columns=["amino_acid", "num_Hbonds_per_res"],
+            )
+            .drop_duplicates()
+            .sort_values(by="amino_acid")
+        )
+        unp_df.to_csv(
             Path(
                 self.plot_folder,
                 f"{self.sim_name}_Hbonds_per_amino_acid_residuewise.csv",
             ),
             index=False,
         )
+
+        self._create_UNP_plot(unp_df, plot_formats)
 
 
 def main():
@@ -570,7 +635,7 @@ def main():
 
     parser.add_argument(
         "--pKas_for_frame_csv",
-        required=True,
+        required=False,
         help="",
     )
 
@@ -622,15 +687,14 @@ def main():
 
     parser.add_argument(
         "--res_id_label_shift",
-        default=0,
-        help="",
-        type=int,
+        default={},
+        type=json.loads,
+        help='Shift residue ID labels by a given offset. Please provide a value in a json format with an offset per segment e.g: {"PROA": 12, "PROB": 8}',
     )
     args = parser.parse_args()
 
     for file in [
         args.graphs_info_txt,
-        args.pKas_for_frame_csv,
         args.pair_distances_csv,
         args.water_within_csv,
         args.total_water_within_csv,
@@ -663,7 +727,7 @@ def main():
         frame_to_time=args.frame_to_time,
         pmf_last_nth_frames=args.pmf_last_nth_frames,
         plot_formats=ast.literal_eval(args.plot_formats),
-        res_id_label_shift=args.res_id_label_shift,
+        res_id_label_shift=dict(args.res_id_label_shift),
     )
 
 

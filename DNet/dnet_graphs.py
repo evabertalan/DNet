@@ -2,20 +2,24 @@ import warnings
 
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="MDAnalysis.*")
 
-
 import helperfunctions as _hf
 import copy
 import numpy as np
 import pandas as pd
 import MDAnalysis as _mda
 import mdhbond as mdh
-import matplotlib.pyplot as plt
+import plotly.express as px
+
 import matplotlib as mpl
+import plotly
 from pathlib import Path
 import os
 import argparse
 import glob
+import plotly.graph_objects as go
+
 import ast
+import json
 
 
 class DNetGraphs:
@@ -94,13 +98,17 @@ class DNetGraphs:
         start=None,
         stop=None,
         residuewise=True,
-        wrap_dcd=False,
+        wrap_dcd=None,
+        write_wrapped_traj_to=None,
         connected_component_root=None,
+        path=(),
         occupancy=None,
         dont_save_graph_objects=False,
+        collect_angles=False,
     ):
         self.distance = distance
         self.connected_component_root = connected_component_root
+        self.path = path
         self.logger.info(f"H-bond criteria cut off distance: {self.distance} A")
 
         self.include_backbone_sidechain = include_backbone_sidechain
@@ -150,17 +158,40 @@ class DNetGraphs:
             distance=distance,
             cut_angle=cut_angle,
             wrap_dcd=wrap_dcd,
+            write_wrapped_traj_to=write_wrapped_traj_to,
             step=step,
             start=start,
             stop=stop,
         )
 
-        wba.set_water_wires(water_in_convex_hull=max_water, max_water=max_water)
+        angles_per_frame = wba.set_water_wires(
+            water_in_convex_hull=max_water,
+            max_water=max_water,
+            collect_angles=collect_angles,
+            exclude_backbone_backbone=True,
+        )
         wba.compute_average_water_per_wire()
         if connected_component_root:
+            self.logger.info(
+                f"Performing connected component search from root: {connected_component_root}"
+            )
             if occupancy:
                 wba.filter_occupancy(occupancy)
             wba.filter_connected_component(connected_component_root)
+
+        elif path:
+            self.logger.info(
+                f"Performing path search between start {path[0]} and goal {path[1]}."
+            )
+            if occupancy:
+                wba.filter_occupancy(occupancy)
+            wba.filter_all_paths(path[0], path[1])
+
+        if len(wba.filtered_graph.nodes) == 0:
+            self.logger.warning(
+                f"No H-bond network was found. The graph is empty with the provided criteria."
+            )
+            return
 
         self.graph_coord_object.update({"wba": wba})
 
@@ -187,47 +218,97 @@ class DNetGraphs:
                     self.sim_name,
                 )
             )
+        elif self.path:
+            path_name = f"{path[0]}-{path[1]}"
+            plot_folder = _hf.create_directory(
+                Path(
+                    self.workfolder,
+                    f"{self.max_water}_water_wires_path",
+                    path_name,
+                    self.sim_name,
+                )
+            )
         else:
             plot_folder = _hf.create_directory(
                 Path(self.workfolder, f"{self.max_water}_water_wires", self.sim_name)
             )
 
+        if collect_angles and len(angles_per_frame):
+            no_self_pair = [
+                col
+                for col in angles_per_frame.columns
+                if not col.split("_")[0].split("-")[:3]
+                == col.split("_")[1].split("-")[:3]
+            ]
+            angles_per_frame[no_self_pair].to_csv(
+                Path(plot_folder, f"{self.sim_name}_angles.csv"), index=False
+            ),
+
         df = pd.DataFrame.from_dict(
             _hf.edge_info(wba, self.graph.edges), orient="index"
         ).reset_index()
         df.columns = ["edge", "water", "occupancy"]
+        df["edge"] = df["edge"].str.replace(":", "_")
 
+        root = (
+            f"_{self.connected_component_root}" if self.connected_component_root else ""
+        )
+        path_name = f"_path_{self.path[0]}-{self.path[1]}" if self.path else ""
         waters = f"_max_{self.max_water}_water_bridges"
         df.to_csv(
-            Path(plot_folder, f"{self.sim_name}{waters}_water_occupancy_edge_info.txt"),
+            Path(
+                plot_folder,
+                f"{self.sim_name}{root}{path_name}{waters}_water_occupancy_all_edge_info.txt",
+            ),
             sep="\t",
             index=False,
         )
 
+        if occupancy:
+            df[df["occupancy"] >= occupancy].to_csv(
+                Path(
+                    plot_folder,
+                    f"{self.sim_name}{root}{path_name}{waters}_water_{occupancy}_occupancy_all_edge_info.txt",
+                ),
+                sep="\t",
+                index=False,
+            )
+
         if not dont_save_graph_objects:
             if connected_component_root:
                 root = f"_{self.connected_component_root}_"
+                path_name = ""
                 self.water_graphs_folder = _hf.create_directory(
                     Path(
                         self.graph_object_folder,
                         f"{self.max_water}_water_wires_connected_components",
                     )
                 )
+            elif self.path:
+                path_name = f"{path[0]}-{path[1]}"
+                root = ""
+                self.water_graphs_folder = _hf.create_directory(
+                    Path(
+                        self.graph_object_folder,
+                        f"{self.max_water}_water_wires_path",
+                    )
+                )
             else:
                 root = ""
+                path_name = ""
                 self.water_graphs_folder = _hf.create_directory(
                     Path(self.graph_object_folder, f"{self.max_water}_water_wires")
                 )
             wba.dump_to_file(
                 Path(
                     self.water_graphs_folder,
-                    f"{self.sim_name}{root}{self.max_water}_water_wires_graph.pickle",
+                    f"{self.sim_name}_{root}{path_name}{self.max_water}_water_wires_graph.pickle",
                 )
             )
             _hf.pickle_write_file(
                 Path(
                     self.helper_files_folder,
-                    f"{self.sim_name}{root}{self.max_water}_water_nx_graphs.pickle",
+                    f"{self.sim_name}_{root}{path_name}{self.max_water}_water_nx_graphs.pickle",
                 ),
                 self.graph,
             )
@@ -235,14 +316,14 @@ class DNetGraphs:
             _hf.json_write_file(
                 Path(
                     self.helper_files_folder,
-                    f"{self.sim_name}{root}{self.max_water}_water_graph_edge_info.json",
+                    f"{self.sim_name}_{root}{path_name}{self.max_water}_water_graph_edge_info.json",
                 ),
                 _hf.edge_info(wba, self.graph.edges),
             )
 
             graph_coord_object_loc = Path(
                 self.helper_files_folder,
-                f"{self.sim_name}{root}{self.max_water}_water_wires_coord_objects.pickle",
+                f"{self.sim_name}_{root}{path_name}{self.max_water}_water_wires_coord_objects.pickle",
             )
             _hf.pickle_write_file(
                 graph_coord_object_loc,
@@ -263,7 +344,7 @@ class DNetGraphs:
                 n not in self.node_positions.keys()
                 or n.split("-")[1] in _hf.water_types
             ):
-                chain_id, res_name, res_id = _hf.get_node_name_pats(n)
+                chain_id, res_name, res_id, atom = _hf.get_node_name_pats(n)
                 coords = (
                     self.graph_coord_object["selected_atoms"]
                     .select_atoms("resid " + res_id)
@@ -290,9 +371,12 @@ class DNetGraphs:
         node_color_selection=None,
         node_color_map="viridis",
         color_edges_by=None,
-        res_id_label_shift=0,
+        res_id_label_shift={},
         color_edge_by_occupnacy=False,
     ):
+        if "wba" not in self.graph_coord_object:
+            return
+
         wba = self.graph_coord_object["wba"]
         if occupancy:
             wba.filter_occupancy(occupancy)
@@ -301,9 +385,8 @@ class DNetGraphs:
             graph = self.graph_coord_object["graph"]
 
         self.logger.debug(f"Creating water wire graph for {self.sim_name}")
-        fig, ax = _hf.create_plot(
-            title=f"""Water wire graph of structure {self.sim_name}
-            Selection:{self.selection[1:-16]}""",
+        fig = _hf.create_plot(
+            title=f"""Water wire graph of {self.sim_name}<br>Selection: {self.selection[:-15]}""",
             xlabel=xlabel,
             ylabel=ylabel,
             plot_parameters=self.plot_parameters,
@@ -317,15 +400,13 @@ class DNetGraphs:
             edge_value_dict = {
                 k: v for k, v in edge_value_dict.items() if k in graph.edges
             }
-            cmap, norm, edge_colors = _hf.get_edge_color_map(
-                list(edge_value_dict.values())
-            )
+            cmap, vmin, vmax = _hf.get_edge_color_map(list(edge_value_dict.values()))
             color_bar_label = "Edge value"
 
         elif color_edge_by_occupnacy:
             values = np.linspace(0.1, 1, 10)
-            cmap, norm, occupany_colors = _hf.get_edge_color_map(values)
-            color_bar_label = "H-bond occupancy"
+            cmap, vmin, vmax = _hf.get_edge_color_map(values)
+            color_bar_label = "Occupancy"
 
         waters, occ_per_wire, _ = _hf.get_edge_params(wba, graph.edges)
         for e in graph.edges:
@@ -336,45 +417,114 @@ class DNetGraphs:
                 x = [edge_line[0][0], edge_line[1][0]]
                 y = [edge_line[0][1], edge_line[1][1]]
 
+                val = None
                 if e in edge_value_dict.keys():
                     val = edge_value_dict[e]
-                    color = edge_colors.to_rgba(val)
+                    if len(cmap) > 1:
+                        color = plotly.colors.find_intermediate_color(
+                            cmap[0][1],
+                            cmap[-1][1],
+                            (val - vmin) / (vmax - vmin),
+                            colortype="rgb",
+                        )
+                    else:
+                        color = cmap[0][1]
 
                 elif color_edge_by_occupnacy:
                     occ = occ_per_wire[list(graph.edges).index(e)]
-                    color = occupany_colors.to_rgba(occ)
+                    color = plotly.colors.find_intermediate_color(
+                        cmap[0][1],
+                        cmap[-1][1],
+                        (occ - vmin) / (vmax - vmin),
+                        colortype="rgb",
+                    )
 
                 else:
                     color = self.plot_parameters["graph_color"]
 
-                ax.plot(
-                    x,
-                    y,
-                    color=color,
-                    marker="o",
-                    linewidth=self.plot_parameters["edge_width"],
-                    markersize=self.plot_parameters["node_size"] * 0.01,
-                    markerfacecolor=self.plot_parameters["graph_color"],
-                    markeredgecolor=self.plot_parameters["graph_color"],
+                interp_x = np.linspace(x[0], x[1], num=7)
+                interp_y = np.linspace(y[0], y[1], num=7)
+
+                edge_index = list(graph.edges).index(e)
+                avg_water_labels = np.round(waters[edge_index], 1)
+                occupancy_labels = int(occ_per_wire[edge_index] * 100)
+
+                repeated_customdata = [[avg_water_labels, occupancy_labels, val]] * 7
+
+                chain_id1, res_name1, res_id1, atom1 = _hf.get_node_name_pats(e0)
+                res_id_offset1 = (
+                    int(res_id_label_shift[chain_id1])
+                    if chain_id1 in res_id_label_shift.keys()
+                    else 0
+                )
+                chain_id2, res_name2, res_id2, atom2 = _hf.get_node_name_pats(e1)
+                res_id_offset2 = (
+                    int(res_id_label_shift[chain_id2])
+                    if chain_id2 in res_id_label_shift.keys()
+                    else 0
+                )
+                hover_text = (
+                    f"{chain_id1}-{res_name1}-{int(res_id1) + res_id_offset1}{atom1} and {chain_id2}-{res_name2}-{int(res_id2) + res_id_offset2}{atom2}<br>"
+                    "Avg. water in bridge: %{customdata[0]:.1f}<br>"
+                    "Occupancy: %{customdata[1]}%<br>"
+                )
+                if val:
+                    hover_text += "Edge color value: %{customdata[2]}<br>"
+
+                hover_text += "<extra></extra>"
+
+                fig.add_trace(
+                    go.Scatter(
+                        x=interp_x,
+                        y=interp_y,
+                        mode="lines+markers",
+                        line=dict(
+                            color=color, width=self.plot_parameters["edge_width"]
+                        ),
+                        marker=dict(
+                            size=10,
+                            color="rgba(0,0,0,0)",  # Completely transparent (alpha = 0)
+                        ),
+                        customdata=repeated_customdata,
+                        hovertemplate=hover_text,
+                        hoverlabel=dict(bgcolor="rgba(211, 211, 211, 0.3)"),
+                        showlegend=False,
+                    )
+                )
+                fig.update_layout(
+                    hovermode="closest", hoverdistance=20  # Sensitivity in pixels
                 )
 
                 if label_edges:
-                    ax.annotate(
-                        np.round(waters[list(graph.edges).index(e)], 1),
-                        (x[0] + (x[1] - x[0]) / 2, y[0] + (y[1] - y[0]) / 2),
-                        color="indianred",
-                        fontsize=self.plot_parameters["edge_label_size"],
-                        weight="bold",
+                    mid_x = x[0] + (x[1] - x[0]) / 2
+                    mid_y = y[0] + (y[1] - y[0]) / 2
+
+                    fig.add_annotation(
+                        x=mid_x,
+                        y=mid_y,
+                        text=str(np.round(waters[edge_index], 1)),
+                        showarrow=False,
+                        font=dict(
+                            color="indianred",
+                            size=self.plot_parameters["edge_label_size"],
+                        ),
+                        xref="x",
+                        yref="y",
+                        yshift=5,
                     )
                     if occupancy:
-                        ax.annotate(
-                            int(occ_per_wire[list(graph.edges).index(e)] * 100),
-                            (
-                                x[0] + (x[1] - x[0]) / 2,
-                                y[0] + (y[1] - 1.0 - y[0]) / 2,
+                        fig.add_annotation(
+                            x=mid_x,
+                            y=mid_y,
+                            text=str(int(occ_per_wire[edge_index] * 100)),
+                            showarrow=False,
+                            font=dict(
+                                color="green",
+                                size=self.plot_parameters["edge_label_size"],
                             ),
-                            color="green",
-                            fontsize=self.plot_parameters["edge_label_size"],
+                            xref="x",
+                            yref="y",
+                            yshift=-10,
                         )
 
         color_info = {}
@@ -399,7 +549,7 @@ class DNetGraphs:
                         color_info, color_map=node_color_map
                     )
                     self.logger.info(f"Color {self.sim_name} by pKa values{lab}.")
-                    color_bar_label = "pKa value"
+                    color_bar_label = "pKa"
                 else:
                     self.logger.info(
                         f"{self.sim_name}.propka does not contain the selected residues. Please update the Residues to color!"
@@ -411,38 +561,71 @@ class DNetGraphs:
                 )
                 if color_info is None:
                     self.logger.error(
-                        f"No {self.sim_name}_data.txt file was found in {self.target_folder}."
+                        f"No _data.txt file was found for {self.sim_name} in {self.target_folder}."
                     )
                 elif len(color_info):
                     value_colors, cmap, norm = _hf.get_color_map(
                         color_info, color_map=node_color_map
                     )
-                    color_bar_label = "Amino acid data value"
+                    color_bar_label = "Custom data"
                     self.logger.info(
                         f"Color {self.sim_name} by values from external data file{lab}."
                     )
                 else:
                     self.logger.error(
-                        f"The content of {self.sim_name}_data.txt is invalid or no residues found in the file matching the selection for node coloring"
+                        f"The content of the _data.txt file for {self.sim_name} is invalid or no residues found in the file matching the selection for node coloring"
                     )
 
-        markers = ["o", ",", "v", "p", "D", "*", "h", "H", "X"]
+        markers = [
+            "circle",
+            "square",
+            "diamond",
+            "cross",
+            "star",
+            "triangle-up",
+            "pentagon",
+            "hexagon",
+            "triangle-down",
+            "triangle-left",
+            "triangle-right",
+            "circle-open",
+            "square-open",
+            "diamond-open",
+            "pentagon-open" "triangle-up-open",
+            "triangle-down-open",
+            "triangle-left-open",
+            "triangle-right-open",
+            "star-open",
+            "hexagon-open",
+        ]
         for n, values in node_pca_pos.items():
             if n in graph.nodes:
+                chain_id, res_name, res_id, atom = _hf.get_node_name_pats(n)
                 if self.multi_segments:
                     marker_shape = markers[self.multi_segments.index(n.split("-")[0])]
                 else:
-                    marker_shape = "o"
+                    marker_shape = "circle"
 
+                res_id_offset = (
+                    int(res_id_label_shift[chain_id])
+                    if chain_id in res_id_label_shift.keys()
+                    else 0
+                )
                 if n.split("-")[1] in _hf.water_types:
-                    ax.scatter(
-                        values[0],
-                        values[1],
-                        marker=marker_shape,
-                        color=self.plot_parameters["water_node_color"],
-                        s=self.plot_parameters["node_size"] * 0.7,
-                        zorder=5,
+                    fig.add_trace(
+                        go.Scatter(
+                            x=[values[0]],
+                            y=[values[1]],
+                            mode="markers",
+                            marker=dict(
+                                symbol=marker_shape,
+                                size=self.plot_parameters["node_size"] * 0.7,
+                                color=self.plot_parameters["water_node_color"],
+                            ),
+                            showlegend=False,
+                        )
                     )
+
                 elif n.split("-")[1] in _hf.amino_d.keys():
 
                     color = (
@@ -451,86 +634,151 @@ class DNetGraphs:
                         else self.plot_parameters["graph_color"]
                     )
 
-                    ax.scatter(
-                        values[0],
-                        values[1],
-                        color=color,
-                        marker=marker_shape,
-                        s=self.plot_parameters["node_size"],
-                        zorder=5,
-                        edgecolors=self.plot_parameters["graph_color"],
+                    fig.add_trace(
+                        go.Scatter(
+                            x=[values[0]],
+                            y=[values[1]],
+                            mode="markers",
+                            marker=dict(
+                                symbol=marker_shape,
+                                size=self.plot_parameters["node_size"],
+                                color=color,
+                                line=dict(color=self.plot_parameters["graph_color"]),
+                                coloraxis="coloraxis",
+                            ),
+                            name="",
+                            showlegend=False,
+                            hovertemplate=(
+                                f"{chain_id}-{_hf.amino_d[res_name]}{int(res_id) + res_id_offset}{atom}<br>"
+                                f"{color_info[n] if n in color_info.keys() else ''}<br>"
+                            ),
+                            hoverlabel=dict(bgcolor="rgba(211, 211, 211, 0.3)"),
+                        )
                     )
+
                 else:
                     color = (
                         value_colors[n]
                         if n in color_info.keys()
                         else self.plot_parameters["non_prot_color"]
                     )
-                    ax.scatter(
-                        values[0],
-                        values[1],
-                        color=color,
-                        marker=marker_shape,
-                        s=self.plot_parameters["node_size"],
-                        zorder=5,
-                        edgecolors=self.plot_parameters["graph_color"],
+
+                    fig.add_trace(
+                        go.Scatter(
+                            x=[values[0]],
+                            y=[values[1]],
+                            mode="markers",
+                            marker=dict(
+                                symbol=marker_shape,
+                                size=self.plot_parameters["node_size"],
+                                color=color,
+                                line=dict(color=self.plot_parameters["graph_color"]),
+                                coloraxis="coloraxis",
+                            ),
+                            name="",
+                            showlegend=False,
+                            hovertemplate=(
+                                f"{chain_id}-{res_name}{int(res_id) + res_id_offset}{atom}<br>"
+                                f"{color_info[n] if n in color_info.keys() else ''}<br>"
+                            ),
+                            hoverlabel=dict(bgcolor="rgba(211, 211, 211, 0.3)"),
+                        )
                     )
 
         if label_nodes:
-            self.logger.info(f"Shifting resid labels with {res_id_label_shift}")
+            if res_id_label_shift:
+                self.logger.info(f"Shifting resid labels with {res_id_label_shift}")
             for n in graph.nodes:
                 n = _hf.get_node_name(n)
                 if n in node_pca_pos.keys():
                     values = node_pca_pos[n]
-                    chain_id, res_name, res_id = _hf.get_node_name_pats(n)
+                    chain_id, res_name, res_id, atom = _hf.get_node_name_pats(n)
+
+                    res_id_offset = (
+                        int(res_id_label_shift[chain_id])
+                        if chain_id in res_id_label_shift.keys()
+                        else 0
+                    )
                     if res_name in _hf.water_types:
                         pass  # temporary turn off water labels
-                        # ax.annotate(
-                        #     f"W{res_id}",
-                        #     (values[0] + 0.2, values[1] - 0.25),
-                        #     fontsize=self.plot_parameters["node_label_size"],
-                        # )
+
                     elif res_name in _hf.amino_d.keys():
                         res_label = (
-                            f"{chain_id}-{_hf.amino_d[res_name]}{res_id}"
+                            f"{chain_id}-{_hf.amino_d[res_name]}{int(res_id) + res_id_offset}{atom}"
                             if self.plot_parameters["show_chain_label"]
-                            else f"{_hf.amino_d[res_name]}{int(res_id)+res_id_label_shift}"
+                            else f"{_hf.amino_d[res_name]}{int(res_id) + res_id_offset}{atom}"
                         )
 
-                        ax.annotate(
-                            res_label,
-                            (values[0] + 0.2, values[1] - 0.26),
-                            fontsize=self.plot_parameters["node_label_size"],
+                        fig.add_annotation(
+                            x=values[0],
+                            y=values[1],
+                            yshift=-15,
+                            text=res_label,
+                            showarrow=False,
+                            xref="x",
+                            yref="y",
+                            font=dict(
+                                size=self.plot_parameters["node_label_size"],
+                                color="black",
+                            ),
                         )
+
                     else:
                         res_label = (
-                            f"{chain_id}-{res_name}{res_id}"
+                            f"{chain_id}-{res_name}{int(res_id) + res_id_offset}{atom}"
                             if self.plot_parameters["show_chain_label"]
-                            else f"{res_name}{int(res_id)+res_id_label_shift}"
+                            else f"{res_name}{int(res_id) + res_id_offset}{atom}"
                         )
-                        ax.annotate(
-                            res_label,
-                            (values[0] + 0.2, values[1] - 0.25),
-                            fontsize=self.plot_parameters["node_label_size"],
-                            color=self.plot_parameters["non_prot_color"],
+
+                        fig.add_annotation(
+                            x=values[0],
+                            y=values[1],
+                            yshift=-15,
+                            text=res_label,
+                            showarrow=False,
+                            xref="x",
+                            yref="y",
+                            font=dict(
+                                size=self.plot_parameters["node_label_size"],
+                                color=self.plot_parameters["non_prot_color"],
+                            ),
                         )
 
         if color_info or color_edge_by_occupnacy or color_edges_by:
-            cbar = fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax)
-            if all(isinstance(x, np.integer) for x in cbar.get_ticks()):
-                tick_centers = (norm.boundaries[:-1] + norm.boundaries[1:]) / 2
-                cbar.ax.set_yticks(tick_centers)
-                cbar.ax.set_yticklabels(norm.boundaries[:-1])
+            if color_info:
+                z_vals = [float(i) for i in color_info.values()]
+            elif color_edge_by_occupnacy:
+                z_vals = np.linspace(0.1, 1, 10)
+            elif color_edges_by:
+                z_vals = [float(i) for i in edge_value_dict.values()]
 
-            cbar.ax.tick_params(
-                labelsize=self.plot_parameters["plot_tick_fontsize"] - 3
-            )
-            cbar.set_label(
-                label=color_bar_label,
-                size=self.plot_parameters["plot_label_fontsize"] - 3,
+            fig.add_trace(
+                go.Scatter(
+                    x=[None],
+                    y=[None],
+                    mode="markers",
+                    marker=dict(
+                        color=z_vals,
+                        colorscale=cmap,
+                        showscale=True,
+                        colorbar=dict(
+                            title=dict(
+                                text=color_bar_label,
+                                font=dict(
+                                    size=self.plot_parameters["plot_label_fontsize"]
+                                ),
+                            ),
+                            tickfont=dict(
+                                size=self.plot_parameters["plot_tick_fontsize"] - 3
+                            ),
+                        ),
+                        size=0,
+                    ),
+                    hoverinfo="skip",
+                    showlegend=False,
+                )
             )
 
-        plt.tight_layout()
         is_label = "_labeled" if label_nodes else ""
         is_propka = "_pKa_color" if color_info and color_propka else ""
         is_conservation = "_data_color" if color_info and color_data else ""
@@ -550,6 +798,15 @@ class DNetGraphs:
                     self.sim_name,
                 )
             )
+        elif self.path:
+            plot_folder = _hf.create_directory(
+                Path(
+                    self.workfolder,
+                    f"{self.max_water}_water_wires_path",
+                    f"{self.path[0]}-{self.path[1]}",
+                    self.sim_name,
+                )
+            )
         else:
             plot_folder = _hf.create_directory(
                 Path(self.workfolder, f"{self.max_water}_water_wires", self.sim_name)
@@ -560,20 +817,26 @@ class DNetGraphs:
         root = (
             f"_{self.connected_component_root}" if self.connected_component_root else ""
         )
+        path_name = f"_path_{self.path[0]}-{self.path[1]}" if self.path else ""
         for form in self.plot_parameters["formats"]:
-            plt.savefig(
+            fig.write_image(
                 Path(
                     plot_folder,
-                    f"{self.sim_name}{root}{waters}{occ}_graph{is_propka}{is_conservation}{is_backbone}{is_label}.{form}",
+                    f"{self.sim_name}{root}{path_name}{waters}{occ}_graph{is_propka}{is_conservation}{is_backbone}{is_label}.{form}",
                 ),
                 format=form,
-                dpi=self.plot_parameters["plot_resolution"],
+            )
+            fig.write_html(
+                Path(
+                    plot_folder,
+                    f"{self.sim_name}{root}{path_name}{waters}{occ}_graph{is_propka}{is_conservation}{is_backbone}{is_label}.html",
+                )
             )
         if is_label:
             _hf.write_text_file(
                 Path(
                     plot_folder,
-                    f"{self.sim_name}{root}{waters}{occ}_water_wire_graph_info.txt",
+                    f"{self.sim_name}{root}{path_name}{waters}{occ}_water_wire_graph_info.txt",
                 ),
                 [
                     "Water wire graph of " + self.sim_name,
@@ -583,6 +846,16 @@ class DNetGraphs:
                     (
                         "\nMinimum H-bond occupancy: " + str(occupancy)
                         if occupancy
+                        else ""
+                    ),
+                    (
+                        f"\nConnected component from root node {self.connected_component_root}"
+                        if root
+                        else ""
+                    ),
+                    (
+                        f"\nPath search between {self.path[0]} and {self.path[1]}"
+                        if self.path
                         else ""
                     ),
                     "\n",
@@ -600,7 +873,6 @@ class DNetGraphs:
                     "\nList of edges: " + str(graph.edges),
                 ],
             )
-        plt.close()
 
     def get_linear_length(self, objects, graph):
         connected_components = _hf.get_connected_components(graph)
@@ -617,6 +889,8 @@ class DNetGraphs:
         self.logger.info("Plotting linear lengths for continuous network components")
         self.logger.debug("Creating linear length plot for " + self.sim_name)
         if "graph" in self.graph_coord_object.keys():
+            if "wba" not in self.graph_coord_object:
+                return
 
             wba = self.graph_coord_object["wba"]
             if occupancy:
@@ -699,7 +973,7 @@ class DNetGraphs:
             ax.set_xticks(np.arange(len(connected_components_coordinates)))
             ax.set_xticklabels([len(c) for c in connected_components_coordinates])
 
-            plt.tight_layout()
+            px.tight_layout()
             is_label = "_labeled" if label_nodes else ""
             is_backbone = (
                 "_backbone"
@@ -714,6 +988,15 @@ class DNetGraphs:
                         self.workfolder,
                         f"{self.max_water}_water_wires_connected_components",
                         self.connected_component_root,
+                        self.sim_name,
+                    )
+                )
+            elif self.path:
+                plot_folder = _hf.create_directory(
+                    Path(
+                        self.workfolder,
+                        f"{self.max_water}_water_wires_path",
+                        f"{self.path[0]}-{self.path[1]}",
                         self.sim_name,
                     )
                 )
@@ -733,13 +1016,15 @@ class DNetGraphs:
                 if self.connected_component_root
                 else ""
             )
+            path_name = f"_path_{self.path[0]}-{self.path[1]}" if self.path else ""
+
             for form in self.plot_parameters["formats"]:
-                plt.savefig(
-                    f"{plot_folder}{self.sim_name}{root}{waters}{occ}_linear_length{is_backbone}{is_label}.{form}",
+                px.savefig(
+                    f"{plot_folder}{self.sim_name}{root}{path_name}{waters}{occ}_linear_length{is_backbone}{is_label}.{form}",
                     format=form,
                     dpi=self.plot_parameters["plot_resolution"],
                 )
-            plt.close()
+            px.close()
 
         else:
             self.logger.warning(
@@ -845,9 +1130,23 @@ def main():
     parser.add_argument(
         "--wrap_dcd",
         type=str,
-        choices=["true", "false"],
-        default="true",
-        help="Apply periodic boundary condition wrapping to keep molecules inside the simulation box. Use 'true' or 'false' (default: true).",
+        choices=["fast", "centered", "None"],
+        default="fast",
+        help=(
+            "Apply periodic boundary condition (PBC) handling to the trajectory. "
+            "'fast' performs simple wrapping, while 'centered' unwraps, centers the system, "
+            "and rewraps solvent for clean visualization. With None no wrapping is applied. Default: fast"
+        ),
+    )
+
+    parser.add_argument(
+        "--write_wrapped_traj_to",
+        type=str,
+        default=None,
+        help=(
+            "Path to a directory where wrapped trajectory files will be written. "
+            "If not provided, wrapped trajectories are not saved to disk."
+        ),
     )
 
     parser.add_argument(
@@ -857,9 +1156,9 @@ def main():
     )
     parser.add_argument(
         "--res_id_label_shift",
-        default=0,
-        type=int,
-        help="Shift residue ID labels by a specified amount in plots (default: 0).",
+        default={},
+        type=json.loads,
+        help='Shift residue ID labels by a given offset. Please provide a value in a json format with an offset per segment e.g: {"PROA": 12, "PROB": 8}',
     )
 
     parser.add_argument(
@@ -876,8 +1175,8 @@ def main():
 
     parser.add_argument(
         "--node_color_map",
-        default="coolwarm_r",
-        help="Colormap used for node coloring (default: 'coolwarm_r').",
+        default="RdBu",
+        help="Colormap used for node coloring (default: 'RdBu'). Use colormaps available in plotly https://plotly.com/python/builtin-colorscales/",
     )
 
     parser.add_argument(
@@ -915,6 +1214,21 @@ def main():
         type=str,
         help="Path to the .txt file, which contains values according to edges need to be colored. Each row of the .txt file needs to be: edge1 edge2 value ",
     )
+
+    parser.add_argument(
+        "--collect_angles",
+        default=False,
+        action="store_true",
+        help="Create a csv file with the angles of all donor-acceptor pairs that are within the set H-bond distance criterion in each frame (default: False).",
+    )
+
+    parser.add_argument(
+        "--path",
+        default=None,
+        nargs=2,
+        help="Search for paths between start and end nodes. Prove parameter in a form of --path start_node end_node. Node name has to be given in a form of segid-resname-resid e.g: A-ASP-213",
+    )
+
     args = parser.parse_args()
 
     base = os.path.basename(args.psf)
@@ -933,14 +1247,23 @@ def main():
     )
     os.makedirs(output_folder, exist_ok=True)
 
-    if args.wrap_dcd:
-        wrap_dcd = args.wrap_dcd.lower() == "true"
+    if args.wrap_dcd in ["fast", "centered"]:
+        wrap_dcd = args.wrap_dcd
     else:
-        wrap_dcd = True
+        wrap_dcd = None
+
+    if args.write_wrapped_traj_to is not None:
+        os.makedirs(args.write_wrapped_traj_to, exist_ok=True)
 
     if args.color_edge_by_occupnacy and args.color_edges_by_file:
         raise ValueError(
             "color_edge_by_occupnacy and color_edges_by_file can't be used at the same time. Edges can be colored only by either of the values."
+        )
+
+    path = tuple(args.path) if args.path else None
+    if path and args.root:
+        raise ValueError(
+            "Connected component and path search can not be executed in the same computation."
         )
 
     dnet_graphs = DNetGraphs(
@@ -961,13 +1284,16 @@ def main():
         distance=args.distance,
         cut_angle=args.cut_angle,
         wrap_dcd=wrap_dcd,
+        write_wrapped_traj_to=args.write_wrapped_traj_to,
         step=args.step,
         start=args.start,
         stop=args.stop,
         include_backbone_sidechain=args.include_backbone,
         occupancy=float(args.occupancy),
         connected_component_root=args.root,
+        path=path,
         dont_save_graph_objects=args.dont_save_graph_objects,
+        collect_angles=args.collect_angles,
     )
 
     dnet_graphs.plot_graphs(
@@ -978,7 +1304,7 @@ def main():
         color_data=args.color_data,
         node_color_selection=args.node_color_selection,
         node_color_map=args.node_color_map,
-        res_id_label_shift=int(args.res_id_label_shift),
+        res_id_label_shift=dict(args.res_id_label_shift),
         color_edge_by_occupnacy=args.color_edge_by_occupnacy,
         color_edges_by=args.color_edges_by_file,
     )
@@ -993,7 +1319,7 @@ def main():
             color_data=args.color_data,
             node_color_selection=args.node_color_selection,
             node_color_map=args.node_color_map,
-            res_id_label_shift=int(args.res_id_label_shift),
+            res_id_label_shift=dict(args.res_id_label_shift),
             color_edge_by_occupnacy=args.color_edge_by_occupnacy,
             color_edges_by=args.color_edges_by_file,
         )
