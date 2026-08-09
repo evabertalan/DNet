@@ -32,7 +32,7 @@ class DNetPlot:
             pKas = self._handle_HSE(self.graph_nodes, pKas)
             self.pKas = pKas.loc[:, pKas.columns.isin(pKa_nodes)][::step]
             self.pKas.to_csv(
-                Path(self.plot_folder, f"pKa_nodes_per_freame_{sim_name}.csv")
+                Path(self.plot_folder, f"pKa_nodes_per_frame_{sim_name}.csv")
             )
         else:
             print(
@@ -42,12 +42,12 @@ class DNetPlot:
 
         self.distances = pd.read_csv(pair_distances_csv, index_col=0)
         self.distances.to_csv(
-            Path(self.plot_folder, f"edge_distances_per_freame_{sim_name}.csv")
+            Path(self.plot_folder, f"edge_distances_per_frame_{sim_name}.csv")
         )
 
         self.water_numbers = pd.read_csv(water_within_csv, index_col=0)
         self.water_numbers.to_csv(
-            Path(self.plot_folder, f"water_aroun_atom_per_freame_{sim_name}.csv")
+            Path(self.plot_folder, f"water_around_atom_per_frame_{sim_name}.csv")
         )
 
         total_water_around_res = pd.read_csv(total_water_within_csv, index_col=0)
@@ -60,7 +60,7 @@ class DNetPlot:
         self.total_water_around_res.to_csv(
             Path(
                 self.plot_folder,
-                f"total_water_around_res_per_freame_{sim_name}.csv",
+                f"total_water_around_res_per_frame_{sim_name}.csv",
             )
         )
 
